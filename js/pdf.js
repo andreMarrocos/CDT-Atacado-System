@@ -34,15 +34,16 @@
 
     // Customer block
     const c = order.customer || {};
+    const address = [c.address, c.city].filter(Boolean).join(' - ');
+    const payment = [c.paymentMethod || c.payment, c.paymentTerm].filter(Boolean).join(' · ');
     const rows = [
-      ['Loja / Razão social', c.store || '-'],
-      ['CNPJ / CPF', c.doc || '-'],
-      ['Contato', c.contact || '-'],
+      ['Cliente / Loja', c.store || '-'],
+      ['CNPJ', c.doc || '-'],
       ['Telefone / WhatsApp', c.phone || '-'],
-      ['Cidade / UF', c.city || '-'],
-      ['Endereço de entrega', c.address || '-'],
-      ['Pagamento', c.payment || '-'],
+      ['Endereço de entrega', (address || '-') + (address ? (c.addressConfirmed ? '  (confirmado)' : '  (não confirmado)') : '')],
+      ['Pagamento', payment || 'A combinar'],
     ];
+    if (c.contact) rows.splice(1, 0, ['Contato', c.contact]);
     doc.autoTable({
       startY: 33,
       body: rows,
@@ -59,7 +60,9 @@
     const prodById = {};
     catalog.products.forEach((p) => { prodById[p.id] = p; });
 
-    const body = sum.lines.map((l, i) => {
+    const saleLines = sum.lines.filter((l) => l.type !== 'display');
+    const displayLines = sum.lines.filter((l) => l.type === 'display');
+    const body = saleLines.map((l, i) => {
       let name = l.name;
       if (l.type === 'kit') {
         const kit = kitById[l.id];
@@ -104,6 +107,20 @@
       },
     });
 
+    // Display stands (no price)
+    if (displayLines.length) {
+      doc.autoTable({
+        startY: doc.lastAutoTable.finalY + 5,
+        head: [['#', 'Expositor solicitado', 'Qtd']],
+        body: displayLines.map((l, i) => [String(i + 1), l.name, String(l.qty)]),
+        theme: 'striped',
+        headStyles: { fillColor: TERRACOTA, textColor: 255, fontSize: 9 },
+        styles: { fontSize: 8.5, cellPadding: 1.6 },
+        columnStyles: { 0: { cellWidth: 8, halign: 'center' }, 2: { cellWidth: 16, halign: 'center' } },
+        margin: { left: margin, right: margin, bottom: 18 },
+      });
+    }
+
     // Totals box
     let y = doc.lastAutoTable.finalY + 6;
     if (y > doc.internal.pageSize.getHeight() - 50) { doc.addPage(); y = 20; }
@@ -111,25 +128,29 @@
     const x = pageW - margin - boxW;
     doc.setDrawColor.apply(doc, GREEN);
     doc.setLineWidth(0.4);
-    doc.roundedRect(x, y, boxW, 30, 2, 2);
+    const boxH = displayLines.length ? 35 : 30;
+    doc.roundedRect(x, y, boxW, boxH, 2, 2);
     doc.setFontSize(9);
     doc.setTextColor(40);
     doc.setFont('helvetica', 'normal');
-    doc.text('Linhas do pedido:', x + 4, y + 6); doc.text(String(sum.lines.length), x + boxW - 4, y + 6, { align: 'right' });
-    doc.text('Total de fardos:', x + 4, y + 11); doc.text(String(sum.totalFardos), x + boxW - 4, y + 11, { align: 'right' });
-    doc.text('Total de pacotes (10 por fardo):', x + 4, y + 16); doc.text(String(sum.totalUnits), x + boxW - 4, y + 16, { align: 'right' });
+    let ty = y + 6;
+    const row = (label, value) => { doc.text(label, x + 4, ty); doc.text(String(value), x + boxW - 4, ty, { align: 'right' }); ty += 5; };
+    row('Itens de produtos/kits:', saleLines.length);
+    row('Total de fardos:', sum.totalFardos);
+    row('Total de pacotes (10 por fardo):', sum.totalUnits);
+    if (displayLines.length) row('Expositores (sem valor):', sum.totalDisplays);
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(12);
     doc.setTextColor.apply(doc, RED);
-    doc.text('TOTAL:', x + 4, y + 25);
-    doc.text(C.formatBRL(sum.totalCents), x + boxW - 4, y + 25, { align: 'right' });
+    doc.text('TOTAL:', x + 4, ty + 4);
+    doc.text(C.formatBRL(sum.totalCents), x + boxW - 4, ty + 4, { align: 'right' });
 
     // Notes
     if (order.customer && order.customer.notes) {
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(9);
       doc.setTextColor.apply(doc, GREEN);
-      doc.text('Observações', margin, y + 5);
+      doc.text('Observações do pedido', margin, y + 5);
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(40);
       doc.text(doc.splitTextToSize(order.customer.notes, pageW - 2 * margin - boxW - 6), margin, y + 10);
@@ -138,7 +159,7 @@
   }
 
   function pdfFileName(order) {
-    const store = ((order.customer && order.customer.store) || 'cliente')
+    const store = ((order.customer && order.customer.store) || 'pedido')
       .normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-|-$/g, '');
     return 'Pedido-' + order.number + '-' + store + '.pdf';
   }

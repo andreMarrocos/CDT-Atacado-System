@@ -38,12 +38,14 @@
           name: item.name,
           size: v.size,
           unitCents: toCents(v.price),
-          fardosPerUnit: type === 'kit' ? item.fardos : 1,
+          fardosPerUnit: type === 'kit' ? item.fardos : type === 'display' ? 0 : 1,
         };
       });
     };
     catalog.products.forEach((p) => add('product', p));
     catalog.kits.forEach((k) => add('kit', k));
+    // Display stands: one line per type, quantity in units, no price and no fardos.
+    (catalog.displays || []).forEach((d) => add('display', { id: d.id, name: d.name, variants: [{ size: 'un', price: 0 }] }));
     return index;
   }
 
@@ -95,20 +97,25 @@
         fardos: meta.fardosPerUnit * qty,
       }));
     });
-    // Products first, then kits; alphabetical by name, then by size.
+    // Products first, then kits, then display stands; alphabetical by name, then by size.
     const sizeOrder = (s) => parseInt(s, 10) || 0;
+    const typeOrder = { product: 0, kit: 1, display: 2 };
     lines.sort((a, b) =>
-      (a.type === b.type ? 0 : a.type === 'product' ? -1 : 1) ||
+      (typeOrder[a.type] - typeOrder[b.type]) ||
       a.name.localeCompare(b.name, 'pt-BR') ||
       sizeOrder(a.size) - sizeOrder(b.size));
     const totalCents = lines.reduce((s, l) => s + l.subtotalCents, 0);
     const totalQty = lines.reduce((s, l) => s + l.qty, 0);
     const totalFardos = lines.reduce((s, l) => s + l.fardos, 0);
+    const totalDisplays = lines.filter((l) => l.type === 'display').reduce((s, l) => s + l.qty, 0);
+    const saleLines = lines.filter((l) => l.type !== 'display').length;
     return {
       lines: lines,
       totalCents: totalCents,
       totalQty: totalQty,
       totalFardos: totalFardos,
+      totalDisplays: totalDisplays,
+      saleLines: saleLines,
       totalUnits: totalFardos * 10, // each fardo holds 10 packages
     };
   }
@@ -135,7 +142,19 @@
     return prefix + String(max + 1).padStart(3, '0');
   }
 
+  // Standard payment terms offered on the order (days after delivery/billing).
+  const PAYMENT_TERMS = [
+    'À vista',
+    '7 dias', '14 dias', '21 dias', '28 dias', '35 dias',
+    '7/14 dias', '14/21 dias', '14/28 dias', '21/28 dias', '28/35 dias',
+    '7/14/21 dias', '14/21/28 dias', '20/27/34 dias', '21/28/35 dias', '28/35/42 dias',
+    '20/27/34/41 dias',
+    'Outro (ver observações)',
+  ];
+  const PAYMENT_METHODS = ['Pix', 'Boleto', 'Cartão de crédito', 'A combinar'];
+
   return {
+    PAYMENT_TERMS, PAYMENT_METHODS,
     toCents, formatBRL, buildIndex, lineKey, sanitizeQty,
     setQty, increment, decrement, removeLine, summarize, cleanCart, nextOrderNumber,
   };

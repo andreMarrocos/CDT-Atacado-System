@@ -4,7 +4,9 @@ Sistema simples para tirar **pedidos de atacado do Clube do Tempero Lojista**, c
 
 - **147 produtos** e **408 variações** (30 g / 50 g / 100 g / 250 g), com os preços exatos do catálogo.
 - **12 kits** (Peixaria, Açougue, Casa de Carnes, Hortifruti, Mercearia, Minimercado, Conveniência e Posto, Autoatendimento, Casa de Temperos, Loja de Produtos Naturais, Padaria, Empório).
+- **12 tipos de expositor** (balcão, gôndola 60 cm / 1 m, ponta de gôndola, centro, chão, parede, clip strip) para incluir no pedido, sem valor.
 - Preços em **R$ por fardo com 10 unidades**. A quantidade do pedido é em fardos.
+- Dados do cliente (todos opcionais): nome/loja, CNPJ, telefone, endereço com confirmação, forma de pagamento (Pix, Boleto, Cartão) e prazo (à vista, 7 a 35 dias e parcelados), observações.
 
 ## Como usar
 
@@ -17,6 +19,8 @@ Sistema simples para tirar **pedidos de atacado do Clube do Tempero Lojista**, c
 
 ### Onde os pedidos ficam salvos
 - O pedido em andamento é salvo automaticamente (não se perde ao fechar a página).
+- **Online (GitHub Pages):** em *Pedidos salvos → Salvar pedidos online (GitHub)*, conecte um repositório **privado** (ex.: `CDT-Atacado-Pedidos`) com um token *fine-grained* com permissão *Contents: Read and write* só nesse repositório. Cada pedido vira `pedidos/<número>.json` lá, e aparece em qualquer aparelho conectado.
+- **Online (página no claude.ai):** os pedidos ficam na sua conta automaticamente.
 - Pedidos finalizados vão para **Pedidos salvos**: reabrir PDF, compartilhar, editar, duplicar ou excluir.
 - Os dados ficam no navegador do aparelho (localStorage). Use **Exportar backup** para gerar um `.json` e **Importar backup** para restaurar em outro aparelho.
 
@@ -28,6 +32,8 @@ css/style.css           Estilos (paleta terracota do catálogo)
 js/catalog.js           Catálogo gerado a partir do PDF (não editar à mão)
 js/order-core.js        Regras do pedido: somas em centavos, +/−, remover, totais
 js/pdf.js               Geração do PDF (jsPDF + AutoTable)
+js/expositores.js       Tipos de expositor (sem preço)
+js/github-sync.js       Salvamento online opcional em repositório privado do GitHub
 js/app.js               Controle da tela, salvamento e histórico
 data/catalog.json       Mesmo catálogo em JSON
 img/produtos/           Fotos dos produtos (extraídas do catálogo)

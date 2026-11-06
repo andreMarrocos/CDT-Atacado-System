@@ -1,20 +1,26 @@
 /*
  * CDT Atacado System - UI controller.
  * State lives in memory and is mirrored to localStorage (draft + saved orders).
+ * Optional online storage: claude.ai artifact database, or a private GitHub repository.
  */
 (function () {
   'use strict';
   const C = window.OrderCore;
   const P = window.OrderPdf;
   const CATALOG = window.CDT_CATALOG;
+  CATALOG.displays = window.CDT_EXPOSITORES || [];
+  const ICONS = window.CDT_EXPOSITOR_ICONS || {};
   const INDEX = C.buildIndex(CATALOG);
   const DRAFT_KEY = 'cdt-atacado.draft.v1';
   const ORDERS_KEY = 'cdt-atacado.orders.v1';
+  const GH_KEY = 'cdt-atacado.github.v1';
 
   const prodById = {};
   CATALOG.products.forEach((p) => { prodById[p.id] = p; });
   const kitById = {};
   CATALOG.kits.forEach((k) => { kitById[k.id] = k; });
+  const dispById = {};
+  CATALOG.displays.forEach((d) => { dispById[d.id] = d; });
 
   // ---------- Storage helpers (storage can be unavailable, so always guard) ----------
   function load(key, fallback) {
@@ -23,109 +29,20 @@
   function save(key, value) {
     try { localStorage.setItem(key, JSON.stringify(value)); return true; } catch (e) { return false; }
   }
+  function drop(key) { try { localStorage.removeItem(key); } catch (e) { /* ignore */ } }
 
-  // ---------- Platform adapter ----------
-  // When published as a claude.ai artifact, window.claude.use() gives access to a
-  // cloud database (orders survive across devices) and a download capability.
-  // Opened as a normal file/website, everything falls back to localStorage + <a download>.
-  const Cloud = { db: null, uid: null, downloads: null, ready: false, writing: {} };
+  // ---------- DOM helpers ----------
+  const $ = (sel, el) => (el || document).querySelector(sel);
+  const $$ = (sel, el) => Array.from((el || document).querySelectorAll(sel));
+  const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const norm = (s) => String(s).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
-  function orderDocId(number) { return 'order_' + String(number).replace(/[^A-Za-z0-9_\-]/g, '_'); }
-  function userCol() { return Cloud.db.collection('data/users/' + Cloud.uid); }
-
-  // Serialize writes per document (the store requires one write at a time per doc).
-  function cloudWrite(docId, fn) {
-    if (!Cloud.ready) return Promise.resolve();
-    const prev = Cloud.writing[docId] || Promise.resolve();
-    const next = prev.then(fn).catch((e) => {
-      console.warn('cloud write failed', e);
-      if (e && e.code === 'quota_exceeded') toast('Espaço na nuvem cheio: exclua pedidos antigos.');
-    });
-    Cloud.writing[docId] = next;
-    return next;
-  }
-  function cloudSaveOrder(o) { return cloudWrite(orderDocId(o.number), () => userCol().doc(orderDocId(o.number)).set(JSON.parse(JSON.stringify(o)))); }
-  function cloudDeleteOrder(number) { return cloudWrite(orderDocId(number), () => userCol().doc(orderDocId(number)).delete()); }
-  let draftTimer;
-  function cloudSaveDraft() {
-    if (!Cloud.ready) return;
-    clearTimeout(draftTimer);
-    draftTimer = setTimeout(() => {
-      const body = JSON.parse(JSON.stringify({ cart: state.cart, customer: state.customer, editingNumber: state.editingNumber || null, savedAt: new Date().toISOString() }));
-      cloudWrite('draft', () => userCol().doc('draft').set(body));
-    }, 1200);
-  }
-
-  async function initCloud() {
-    if (!window.claude || typeof window.claude.use !== 'function') return;
-    try {
-      const [db, user, downloads] = await Promise.all([
-        window.claude.use('db'), window.claude.use('user'), window.claude.use('downloads')]);
-      Cloud.downloads = downloads || null;
-      const uid = db && user ? await user.id() : null;
-      if (!db || !uid) { setStorageLabel(); return; }
-      Cloud.db = db; Cloud.uid = uid;
-      const snap = await Promise.race([
-        userCol().get(),
-        new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 10000)),
-      ]);
-      const remote = {};
-      let remoteDraft = null;
-      snap.docs.forEach((d) => {
-        if (!d.exists) return;
-        if (d.id === 'draft') remoteDraft = d.data();
-        else if (d.id.indexOf('order_') === 0) { const o = d.data(); if (o && o.number) remote[o.number] = o; }
-      });
-      Cloud.ready = true;
-      // Merge: union by order number, newest edit wins; push local-only orders up.
-      const stamp = (o) => String(o.updatedAt || o.createdAt || '');
-      const merged = Object.assign({}, remote);
-      state.orders.forEach((o) => {
-        const r = merged[o.number];
-        if (!r || stamp(o) > stamp(r)) { merged[o.number] = o; cloudSaveOrder(o); }
-      });
-      state.orders = Object.values(merged).map((o) => JSON.parse(JSON.stringify(o)))
-        .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
-      save(ORDERS_KEY, state.orders);
-      if (!Object.keys(state.cart).length && remoteDraft && remoteDraft.cart && Object.keys(remoteDraft.cart).length) {
-        state.cart = C.cleanCart(remoteDraft.cart, INDEX);
-        state.customer = Object.assign({}, remoteDraft.customer || {});
-        state.editingNumber = remoteDraft.editingNumber || null;
-        save(DRAFT_KEY, { cart: state.cart, customer: state.customer, editingNumber: state.editingNumber });
-        renderList();
-      }
-      updateTotals();
-      if (!$('#history').hidden) renderHistory();
-    } catch (e) {
-      console.warn('cloud init failed', e);
-      Cloud.ready = false;
-    }
-    setStorageLabel();
-  }
-
-  function setStorageLabel() {
-    const el = $('#storage-label');
-    if (!el) return;
-    el.textContent = Cloud.ready
-      ? '☁️ Pedidos salvos na sua conta (acessíveis em qualquer aparelho em que você abrir esta página).'
-      : '💾 Pedidos salvos neste navegador. Use “Exportar backup” de vez em quando para guardar uma cópia (.json) e “Importar” para restaurar em outro aparelho.';
-  }
-
-  // Offer a generated file: platform download (artifact) or a regular <a download>.
-  async function offerFile(filename, blob) {
-    if (Cloud.downloads) {
-      try { await Cloud.downloads.save({ filename: filename, data: blob }); return true; } catch (e) {
-        if (e && e.code === 'declined') return false;
-        if (e && e.code === 'rate_limited') { toast('Aguarde um instante e tente de novo.'); return false; }
-        console.warn('downloads.save failed, falling back', e);
-      }
-    }
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = filename;
-    document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
-    return true;
+  let toastTimer;
+  function toast(msg) {
+    const t = $('#toast');
+    t.textContent = msg; t.hidden = false;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { t.hidden = true; }, 3000);
   }
 
   // ---------- State ----------
@@ -140,40 +57,192 @@
     query: '',
     lastOrder: null,
   };
+
+  // ---------- Online storage ----------
+  // Remote.kind: 'claude' (artifact database), 'github' (private repo) or null (this device only).
+  const Remote = { kind: null, ready: false, db: null, uid: null, gh: null, downloads: null, writing: {}, lastError: '' };
+
+  function orderDocId(number) { return 'order_' + String(number).replace(/[^A-Za-z0-9_\-]/g, '_'); }
+  function userCol() { return Remote.db.collection('data/users/' + Remote.uid); }
+
+  // Serialize writes per order (one write at a time per document/file).
+  function remoteWrite(key, fn) {
+    if (!Remote.ready) return Promise.resolve();
+    const prev = Remote.writing[key] || Promise.resolve();
+    const next = prev.then(fn).then(() => { Remote.lastError = ''; setStorageLabel(); }).catch((e) => {
+      console.warn('remote write failed', e);
+      Remote.lastError = e && e.message ? e.message : String(e);
+      setStorageLabel();
+      toast('Não foi possível salvar online agora. O pedido ficou salvo neste aparelho.');
+    });
+    Remote.writing[key] = next;
+    return next;
+  }
+  function remoteSaveOrder(o) {
+    const copy = JSON.parse(JSON.stringify(o));
+    if (Remote.kind === 'claude') return remoteWrite(o.number, () => userCol().doc(orderDocId(o.number)).set(copy));
+    if (Remote.kind === 'github') return remoteWrite(o.number, () => Remote.gh.saveOrder(copy));
+    return Promise.resolve();
+  }
+  function remoteDeleteOrder(number) {
+    if (Remote.kind === 'claude') return remoteWrite(number, () => userCol().doc(orderDocId(number)).delete());
+    if (Remote.kind === 'github') return remoteWrite(number, () => Remote.gh.deleteOrder(number));
+    return Promise.resolve();
+  }
+  let draftTimer;
+  function remoteSaveDraft() {
+    if (!Remote.ready || Remote.kind !== 'claude') return; // drafts sync only in the claude.ai version
+    clearTimeout(draftTimer);
+    draftTimer = setTimeout(() => {
+      const body = JSON.parse(JSON.stringify({ cart: state.cart, customer: state.customer, editingNumber: state.editingNumber || null, savedAt: new Date().toISOString() }));
+      remoteWrite('draft', () => userCol().doc('draft').set(body));
+    }, 1200);
+  }
+
+  // Union of local and remote orders by number; the most recent edit wins; local-only ones are uploaded.
+  function mergeRemoteOrders(remoteList) {
+    const stamp = (o) => String(o.updatedAt || o.createdAt || '');
+    const merged = {};
+    remoteList.forEach((o) => { if (o && o.number) merged[o.number] = o; });
+    state.orders.forEach((o) => {
+      const r = merged[o.number];
+      if (!r || stamp(o) > stamp(r)) { merged[o.number] = o; remoteSaveOrder(o); }
+    });
+    state.orders = Object.values(merged).map((o) => JSON.parse(JSON.stringify(o)))
+      .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
+    save(ORDERS_KEY, state.orders);
+    updateTotals();
+    if (!$('#history').hidden) renderHistory();
+  }
+
+  function withTimeout(promise, ms) {
+    return Promise.race([promise, new Promise((_, rej) => setTimeout(() => rej(new Error('tempo esgotado')), ms))]);
+  }
+
+  async function initClaudeRuntime() {
+    if (!window.claude || typeof window.claude.use !== 'function') return false;
+    try {
+      const [db, user, downloads] = await Promise.all([
+        window.claude.use('db'), window.claude.use('user'), window.claude.use('downloads')]);
+      Remote.downloads = downloads || null;
+      const uid = db && user ? await user.id() : null;
+      if (!db || !uid) return !!downloads;
+      Remote.kind = 'claude'; Remote.db = db; Remote.uid = uid;
+      const snap = await withTimeout(userCol().get(), 10000);
+      const remote = [];
+      let remoteDraft = null;
+      snap.docs.forEach((d) => {
+        if (!d.exists) return;
+        if (d.id === 'draft') remoteDraft = d.data();
+        else if (d.id.indexOf('order_') === 0) remote.push(d.data());
+      });
+      Remote.ready = true;
+      mergeRemoteOrders(remote);
+      if (!Object.keys(state.cart).length && remoteDraft && remoteDraft.cart && Object.keys(remoteDraft.cart).length) {
+        state.cart = C.cleanCart(remoteDraft.cart, INDEX);
+        state.customer = Object.assign({}, remoteDraft.customer || {});
+        state.editingNumber = remoteDraft.editingNumber || null;
+        save(DRAFT_KEY, { cart: state.cart, customer: state.customer, editingNumber: state.editingNumber });
+        renderList(); updateTotals();
+      }
+      return true;
+    } catch (e) {
+      console.warn('claude runtime init failed', e);
+      Remote.kind = null; Remote.ready = false;
+      return !!Remote.downloads;
+    }
+  }
+
+  async function connectGitHub(cfg, quiet) {
+    try {
+      const gh = window.GitHubSync.create(cfg);
+      const info = await withTimeout(gh.test(), 15000);
+      Remote.kind = 'github'; Remote.gh = gh; Remote.ready = true; Remote.lastError = '';
+      Remote.ghPrivate = info.private;
+      setStorageLabel();
+      const list = await withTimeout(gh.listOrders(), 60000);
+      mergeRemoteOrders(list);
+      setStorageLabel();
+      if (!quiet) toast('Conectado ao GitHub: ' + info.fullName + (info.private ? '' : ' (atenção: repositório público!)'));
+      return true;
+    } catch (e) {
+      console.warn('github connect failed', e);
+      if (Remote.kind === 'github') { Remote.kind = null; Remote.ready = false; Remote.gh = null; }
+      Remote.lastError = e.message;
+      setStorageLabel();
+      if (!quiet) toast('Falha ao conectar: ' + e.message);
+      return false;
+    }
+  }
+
+  async function initRemote() {
+    const inClaude = await initClaudeRuntime();
+    if (!inClaude && Remote.kind !== 'claude') {
+      const cfg = load(GH_KEY, null);
+      if (cfg && cfg.repo && cfg.token) await connectGitHub(cfg, true);
+    }
+    setStorageLabel();
+  }
+
+  function setStorageLabel() {
+    const el = $('#storage-label');
+    const gh = $('#gh-box');
+    const inClaude = Remote.kind === 'claude' || !!Remote.downloads;
+    if (gh) gh.hidden = inClaude;
+    const cfg = load(GH_KEY, {}) || {};
+    if ($('#gh-repo') && !$('#gh-repo').value) $('#gh-repo').value = cfg.repo || '';
+    let text;
+    if (Remote.kind === 'claude' && Remote.ready) text = '☁️ Pedidos salvos na sua conta Claude: aparecem em qualquer aparelho em que você abrir esta página.';
+    else if (Remote.kind === 'github' && Remote.ready) text = '☁️ Pedidos salvos online no GitHub (' + Remote.gh.repo + ') e neste aparelho.' + (Remote.ghPrivate === false ? ' ⚠️ O repositório é público: deixe-o privado.' : '');
+    else text = '💾 Pedidos salvos só neste aparelho. Para salvar online, conecte o GitHub abaixo, ou use “Exportar backup”.';
+    if (Remote.lastError) text += ' ⚠️ Último erro: ' + Remote.lastError;
+    if (el) el.textContent = text;
+    const badge = $('#cloud-badge');
+    if (badge) { badge.textContent = Remote.ready ? '☁️' : '💾'; badge.title = text; }
+    if ($('#gh-disconnect')) $('#gh-disconnect').hidden = !(cfg && cfg.token);
+  }
+
+  // Offer a generated file: platform download (claude.ai) or a regular <a download>.
+  async function offerFile(filename, blob) {
+    if (Remote.downloads) {
+      try { await Remote.downloads.save({ filename: filename, data: blob }); return true; } catch (e) {
+        if (e && e.code === 'declined') return false;
+        if (e && e.code === 'rate_limited') { toast('Aguarde um instante e tente de novo.'); return false; }
+        console.warn('downloads.save failed, falling back', e);
+      }
+    }
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+    return true;
+  }
+
   function persistDraft() {
     save(DRAFT_KEY, { cart: state.cart, customer: state.customer, editingNumber: state.editingNumber });
-    cloudSaveDraft();
+    remoteSaveDraft();
   }
-  // Save the order list locally and, when available, the changed order in the cloud.
+  // Save the order list locally and, when connected, the changed order online.
   function persistOrders(changedOrder, deletedNumber) {
     const okLocal = save(ORDERS_KEY, state.orders);
-    if (changedOrder) cloudSaveOrder(changedOrder);
-    if (deletedNumber) cloudDeleteOrder(deletedNumber);
-    if (!okLocal && !Cloud.ready) toast('Não foi possível salvar no navegador. Exporte um backup!');
-  }
-
-  // ---------- DOM helpers ----------
-  const $ = (sel, el) => (el || document).querySelector(sel);
-  const $$ = (sel, el) => Array.from((el || document).querySelectorAll(sel));
-  const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-  const norm = (s) => String(s).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
-
-  let toastTimer;
-  function toast(msg) {
-    const t = $('#toast');
-    t.textContent = msg; t.hidden = false;
-    clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => { t.hidden = true; }, 2600);
+    if (changedOrder) remoteSaveOrder(changedOrder);
+    if (deletedNumber) remoteDeleteOrder(deletedNumber);
+    if (!okLocal && !Remote.ready) toast('Não foi possível salvar no navegador. Exporte um backup!');
   }
 
   // ---------- Catalog list ----------
   const CATEGORIES = ['Todos'].concat(Array.from(new Set(CATALOG.products.map((p) => p.category))));
+  const DISPLAY_GROUPS = ['Todos'].concat(Array.from(new Set(CATALOG.displays.map((d) => d.group))));
 
   function renderChips() {
     const chips = $('#chips');
-    if (state.tab !== 'product') { chips.innerHTML = ''; return; }
-    chips.innerHTML = CATEGORIES.map((c) => {
-      const n = c === 'Todos' ? CATALOG.products.length : CATALOG.products.filter((p) => p.category === c).length;
+    let list = null, items = null, field = null;
+    if (state.tab === 'product') { list = CATEGORIES; items = CATALOG.products; field = 'category'; }
+    else if (state.tab === 'display') { list = DISPLAY_GROUPS; items = CATALOG.displays; field = 'group'; }
+    if (!list) { chips.innerHTML = ''; return; }
+    chips.innerHTML = list.map((c) => {
+      const n = c === 'Todos' ? items.length : items.filter((p) => p[field] === c).length;
       return '<button type="button" class="chip' + (c === state.category ? ' active' : '') + '" data-cat="' + esc(c) + '">' + esc(c) + ' <span class="muted">' + n + '</span></button>';
     }).join('');
   }
@@ -182,7 +251,7 @@
     const q = state.cart[key] || 0;
     return '<div class="stepper" data-key="' + esc(key) + '">' +
       '<button type="button" class="minus" data-act="dec" aria-label="Diminuir"' + (q === 0 ? ' disabled' : '') + '>−</button>' +
-      '<input type="number" inputmode="numeric" min="0" step="1" value="' + q + '" aria-label="Quantidade de fardos" data-act="set">' +
+      '<input type="number" inputmode="numeric" pattern="[0-9]*" min="0" step="1" value="' + q + '" aria-label="Quantidade" data-act="set">' +
       '<button type="button" class="plus" data-act="inc" aria-label="Adicionar">+</button></div>';
   }
 
@@ -198,26 +267,37 @@
 
   function productCard(p) {
     return '<article class="card" data-item="product:' + p.id + '">' +
-      '<img loading="lazy" src="' + esc(p.image) + '" alt="' + esc(p.name) + '">' +
+      '<div class="card-head"><img loading="lazy" src="' + esc(p.image) + '" alt="' + esc(p.name) + '">' +
       '<div><span class="code">#' + p.code + ' · ' + esc(p.category) + '</span>' +
-      '<h3>' + esc(p.name) + '</h3><p class="use">' + esc(p.use) + '</p>' +
-      variantsHtml('product', p) + '<div class="card-sub"></div></div></article>';
+      '<h3>' + esc(p.name) + '</h3><p class="use">' + esc(p.use) + '</p></div></div>' +
+      variantsHtml('product', p) + '<div class="card-sub"></div></article>';
   }
 
   function kitCard(k) {
     const names = k.items.map((id) => prodById[id].name);
     return '<article class="card" data-item="kit:' + k.id + '">' +
-      '<img loading="lazy" src="' + esc(k.image) + '" alt="' + esc(k.name) + '">' +
+      '<div class="card-head"><img loading="lazy" src="' + esc(k.image) + '" alt="' + esc(k.name) + '">' +
       '<div><span class="code">' + k.fardos + ' fardos · ' + (k.fardos * 10) + ' pacotes</span>' +
       '<h3>' + esc(k.name) + '</h3><p class="use">' + esc(k.description) + ' Um fardo de cada sabor.</p>' +
-      '<details class="kit-items"><summary>Ver os ' + k.fardos + ' sabores</summary>' + names.map(esc).join(' · ') + '</details>' +
-      variantsHtml('kit', k) + '<div class="card-sub"></div></div></article>';
+      '<details class="kit-items"><summary>Ver os ' + k.fardos + ' sabores</summary>' + names.map(esc).join(' · ') + '</details></div></div>' +
+      variantsHtml('kit', k) + '<div class="card-sub"></div></article>';
+  }
+
+  function displayCard(d) {
+    const key = C.lineKey('display', d.id, 'un');
+    return '<article class="card" data-item="display:' + d.id + '">' +
+      '<div class="card-head">' + (ICONS[d.icon] || '') +
+      '<div><span class="code">Expositor · ' + esc(d.group) + '</span>' +
+      '<h3>' + esc(d.name) + '</h3><p class="use">' + esc(d.description) + '</p></div></div>' +
+      '<div class="variant' + (state.cart[key] ? ' active' : '') + '" data-vkey="' + esc(key) + '">' +
+        '<span class="size">Qtd</span><span class="price free">Sem valor no pedido</span>' + stepperHtml(key) + '</div>' +
+      '<div class="card-sub"></div></article>';
   }
 
   function matches(item, extra) {
     if (!state.query) return true;
-    const hay = norm([item.name, item.use || '', item.description || '', item.category || '', item.code || '', extra || '',
-      item.variants.map((v) => v.size).join(' ')].join(' '));
+    const hay = norm([item.name, item.use || '', item.description || '', item.category || '', item.group || '', item.code || '', extra || '',
+      (item.variants || []).map((v) => v.size).join(' ')].join(' '));
     return norm(state.query).split(/\s+/).filter(Boolean).every((t) => hay.indexOf(t) !== -1 || hay.replace(/\s/g, '').indexOf(t) !== -1);
   }
 
@@ -235,11 +315,18 @@
         if (!matches(k, k.items.map((id) => prodById[id].name).join(' '))) return;
         html += kitCard(k); count++;
       });
+    } else if (state.tab === 'display') {
+      CATALOG.displays.forEach((d) => {
+        if (state.category !== 'Todos' && d.group !== state.category) return;
+        if (!matches(d)) return;
+        html += displayCard(d); count++;
+      });
     } else {
-      // "No pedido": show only items already in the cart
+      // "No pedido": only items already in the cart
       const ids = new Set(Object.keys(state.cart).map((k) => k.split('|')[0]));
       CATALOG.products.forEach((p) => { if (ids.has('product:' + p.id) && matches(p)) { html += productCard(p); count++; } });
       CATALOG.kits.forEach((k) => { if (ids.has('kit:' + k.id) && matches(k)) { html += kitCard(k); count++; } });
+      CATALOG.displays.forEach((d) => { if (ids.has('display:' + d.id) && matches(d)) { html += displayCard(d); count++; } });
     }
     $('#list').innerHTML = html;
     $('#empty').hidden = count > 0;
@@ -249,19 +336,23 @@
 
   // Refresh one card's steppers and subtotal without re-rendering (keeps input focus).
   function updateCard(card) {
-    let sub = 0, fardos = 0;
+    let sub = 0, fardos = 0, units = 0, isDisplay = false;
     $$('.variant', card).forEach((row) => {
       const key = row.dataset.vkey;
+      const meta = INDEX[key];
       const q = state.cart[key] || 0;
       row.classList.toggle('active', q > 0);
       const input = $('input', row);
       if (document.activeElement !== input) input.value = q;
       $('.minus', row).disabled = q === 0;
-      sub += q * INDEX[key].unitCents;
-      fardos += q * INDEX[key].fardosPerUnit;
+      sub += q * meta.unitCents;
+      fardos += q * meta.fardosPerUnit;
+      units += q;
+      if (meta.type === 'display') isDisplay = true;
     });
-    card.classList.toggle('has-qty', sub > 0);
-    $('.card-sub', card).textContent = sub > 0 ? fardos + ' fardo(s) · ' + C.formatBRL(sub) : '';
+    card.classList.toggle('has-qty', units > 0);
+    $('.card-sub', card).textContent = units === 0 ? '' :
+      isDisplay ? units + ' expositor(es) no pedido' : fardos + ' fardo(s) · ' + C.formatBRL(sub);
   }
 
   function updateTotals() {
@@ -290,19 +381,25 @@
   }
 
   // ---------- Review drawer ----------
-  function imageFor(line) {
-    return line.type === 'kit' ? kitById[line.id].image : prodById[line.id].image;
+  function imageHtml(line) {
+    if (line.type === 'display') return ICONS[dispById[line.id].icon] || '';
+    const src = line.type === 'kit' ? kitById[line.id].image : prodById[line.id].image;
+    return '<img src="' + esc(src) + '" alt="">';
+  }
+
+  function lineMeta(l) {
+    if (l.type === 'display') return 'Expositor · ' + l.qty + ' un. · sem valor';
+    return (l.type === 'kit' ? 'Kit · ' + l.fardosPerUnit + ' fardos cada · ' : '#' + l.code + ' · ') +
+      C.formatBRL(l.unitCents) + ' × ' + l.qty;
   }
 
   function renderReview() {
     const s = C.summarize(state.cart, INDEX);
     $('#review-lines').innerHTML = s.lines.length ? s.lines.map((l) =>
-      '<div class="rline">' +
-        '<img src="' + esc(imageFor(l)) + '" alt="">' +
-        '<div><div class="rname">' + esc(l.name) + ' · ' + esc(l.size) + '</div>' +
-        '<div class="rmeta">' + (l.type === 'kit' ? 'Kit · ' + l.fardosPerUnit + ' fardos cada · ' : '#' + l.code + ' · ') +
-          C.formatBRL(l.unitCents) + ' × ' + l.qty + '</div>' +
-        '<div class="rsub">' + C.formatBRL(l.subtotalCents) + '</div></div>' +
+      '<div class="rline">' + imageHtml(l) +
+        '<div><div class="rname">' + esc(l.name) + (l.type === 'display' ? '' : ' · ' + esc(l.size)) + '</div>' +
+        '<div class="rmeta">' + lineMeta(l) + '</div>' +
+        (l.type === 'display' ? '' : '<div class="rsub">' + C.formatBRL(l.subtotalCents) + '</div>') + '</div>' +
         '<div class="ractions">' + stepperHtml(l.key) +
           '<button type="button" class="remove" data-remove="' + esc(l.key) + '">Remover</button></div>' +
       '</div>').join('') : '<p class="empty">Pedido vazio.</p>';
@@ -310,20 +407,35 @@
       '<div><span>Itens (linhas)</span><span>' + s.lines.length + '</span></div>' +
       '<div><span>Total de fardos</span><span>' + s.totalFardos + '</span></div>' +
       '<div><span>Total de pacotes (10 por fardo)</span><span>' + s.totalUnits + '</span></div>' +
+      (s.totalDisplays ? '<div><span>Expositores</span><span>' + s.totalDisplays + '</span></div>' : '') +
       '<div class="grand"><span>TOTAL</span><span>' + C.formatBRL(s.totalCents) + '</span></div>';
     $('#btn-finish').disabled = s.lines.length === 0;
     $('#btn-finish').textContent = state.editingNumber ? 'Salvar alterações e gerar PDF' : 'Finalizar e gerar PDF';
   }
 
+  function fillSelects() {
+    $('#customer-form [name=paymentMethod]').innerHTML = '<option value="">Selecione…</option>' +
+      C.PAYMENT_METHODS.map((m) => '<option>' + esc(m) + '</option>').join('');
+    $('#customer-form [name=paymentTerm]').innerHTML = '<option value="">Selecione…</option>' +
+      C.PAYMENT_TERMS.map((m) => '<option>' + esc(m) + '</option>').join('');
+  }
+
   function fillCustomerForm() {
     const f = $('#customer-form');
-    Array.from(f.elements).forEach((el) => { if (el.name) el.value = state.customer[el.name] || ''; });
+    Array.from(f.elements).forEach((el) => {
+      if (!el.name) return;
+      if (el.type === 'checkbox') el.checked = !!state.customer[el.name];
+      else el.value = state.customer[el.name] || '';
+    });
   }
 
   function readCustomerForm() {
     const f = $('#customer-form');
     const c = {};
-    Array.from(f.elements).forEach((el) => { if (el.name) c[el.name] = el.value.trim(); });
+    Array.from(f.elements).forEach((el) => {
+      if (!el.name) return;
+      c[el.name] = el.type === 'checkbox' ? el.checked : el.value.trim();
+    });
     return c;
   }
 
@@ -334,26 +446,19 @@
   function finishOrder() {
     state.customer = readCustomerForm();
     persistDraft();
-    if (!state.customer.store) {
-      const inp = $('#customer-form [name=store]');
-      inp.classList.add('touched'); $('#customer-box').open = true; inp.focus();
-      toast('Informe o nome da loja / cliente.');
-      return;
-    }
     const s = C.summarize(state.cart, INDEX);
     if (!s.lines.length) { toast('O pedido está vazio.'); return; }
 
     const now = new Date().toISOString();
+    const base = { customer: state.customer, cart: Object.assign({}, state.cart), totalCents: s.totalCents, totalFardos: s.totalFardos, totalDisplays: s.totalDisplays };
     let order;
     if (state.editingNumber) {
       const i = state.orders.findIndex((o) => o.number === state.editingNumber);
       const prev = i >= 0 ? state.orders[i] : {};
-      order = { number: state.editingNumber, createdAt: prev.createdAt || now, updatedAt: now,
-        customer: state.customer, cart: Object.assign({}, state.cart), totalCents: s.totalCents, totalFardos: s.totalFardos };
+      order = Object.assign({ number: state.editingNumber, createdAt: prev.createdAt || now, updatedAt: now }, base);
       if (i >= 0) state.orders[i] = order; else state.orders.unshift(order);
     } else {
-      order = { number: C.nextOrderNumber(state.orders.map((o) => o.number)), createdAt: now,
-        customer: state.customer, cart: Object.assign({}, state.cart), totalCents: s.totalCents, totalFardos: s.totalFardos };
+      order = Object.assign({ number: C.nextOrderNumber(state.orders.map((o) => o.number)), createdAt: now }, base);
       state.orders.unshift(order);
     }
     persistOrders(order);
@@ -362,12 +467,13 @@
     state.editingNumber = order.number;
     persistDraft();
     close('review');
+    const where = Remote.ready ? 'salvo online e neste aparelho' : 'salvo neste aparelho';
     $('#done-body').innerHTML =
-      '<p><strong>' + esc(order.number) + '</strong> · ' + esc(order.customer.store) + '</p>' +
-      '<p>' + s.lines.length + ' itens · ' + s.totalFardos + ' fardos · <strong>' + C.formatBRL(s.totalCents) + '</strong></p>' +
-      '<p class="hint">O pedido ficou salvo em “Pedidos salvos”. O PDF foi baixado; você também pode compartilhar direto pelo WhatsApp.</p>';
+      '<p><strong>' + esc(order.number) + '</strong>' + (order.customer.store ? ' · ' + esc(order.customer.store) : '') + '</p>' +
+      '<p>' + s.lines.length + ' itens · ' + s.totalFardos + ' fardos' + (s.totalDisplays ? ' · ' + s.totalDisplays + ' expositor(es)' : '') +
+        ' · <strong>' + C.formatBRL(s.totalCents) + '</strong></p>' +
+      '<p class="hint">Pedido ' + where + ' (veja em “Pedidos salvos”). Baixe o PDF ou compartilhe direto pelo WhatsApp.</p>';
     open('done');
-    downloadPdf(order);
     updateTotals();
   }
 
@@ -386,13 +492,13 @@
       const doc = P.buildOrderPdf(order, CATALOG);
       const blob = doc.output('blob');
       const file = new File([blob], P.pdfFileName(order), { type: 'application/pdf' });
-      if (!Cloud.downloads && navigator.canShare && navigator.canShare({ files: [file] })) {
+      if (!Remote.downloads && navigator.canShare && navigator.canShare({ files: [file] })) {
         await navigator.share({ files: [file], title: 'Pedido ' + order.number,
-          text: 'Pedido ' + order.number + ' · ' + (order.customer.store || '') + ' · ' + C.formatBRL(order.totalCents) });
+          text: 'Pedido ' + order.number + (order.customer.store ? ' · ' + order.customer.store : '') + ' · ' + C.formatBRL(order.totalCents) });
       } else {
         // In the Claude app the download prompt opens the phone's share sheet.
         const ok = await offerFile(P.pdfFileName(order), blob);
-        if (ok && !Cloud.downloads) toast('Compartilhamento direto não suportado aqui; o PDF foi baixado.');
+        if (ok && !Remote.downloads) toast('Este navegador não compartilha arquivos direto; o PDF foi baixado.');
       }
     } catch (e) {
       if (e && e.name === 'AbortError') return;
@@ -411,10 +517,12 @@
     if (!state.orders.length) { list.innerHTML = '<p class="empty">Nenhum pedido salvo ainda.</p>'; return; }
     list.innerHTML = state.orders.map((o) => {
       const s = C.summarize(o.cart, INDEX);
+      const c = o.customer || {};
       return '<div class="hline" data-number="' + esc(o.number) + '">' +
-        '<div class="htop"><span>' + esc(o.number) + ' · ' + esc(o.customer.store || 'Sem nome') + '</span><span>' + C.formatBRL(s.totalCents) + '</span></div>' +
+        '<div class="htop"><span>' + esc(o.number) + ' · ' + esc(c.store || 'Sem nome') + '</span><span>' + C.formatBRL(s.totalCents) + '</span></div>' +
         '<div class="hmeta">' + new Date(o.createdAt).toLocaleString('pt-BR') + (o.updatedAt ? ' · editado ' + new Date(o.updatedAt).toLocaleString('pt-BR') : '') +
-          ' · ' + s.lines.length + ' itens · ' + s.totalFardos + ' fardos' + (o.customer.city ? ' · ' + esc(o.customer.city) : '') + '</div>' +
+          ' · ' + s.lines.length + ' itens · ' + s.totalFardos + ' fardos' + (s.totalDisplays ? ' · ' + s.totalDisplays + ' expositor(es)' : '') +
+          (c.paymentMethod || c.paymentTerm ? ' · ' + esc([c.paymentMethod, c.paymentTerm].filter(Boolean).join(' ')) : '') + '</div>' +
         '<div class="hactions">' +
           '<button class="btn" data-h="pdf" type="button">PDF</button>' +
           '<button class="btn" data-h="share" type="button">Compartilhar</button>' +
@@ -433,7 +541,7 @@
     if (act === 'pdf') downloadPdf(o);
     else if (act === 'share') sharePdf(o);
     else if (act === 'edit' || act === 'copy') {
-      if (hasDraft() && !(await confirmSafe('Substituir o pedido em andamento pelo pedido ' + number + '?', 'Substituir'))) return;
+      if (hasDraft() && state.editingNumber !== number && !(await confirmSafe('Substituir o pedido em andamento pelo pedido ' + number + '?', 'Substituir'))) return;
       state.cart = C.cleanCart(o.cart, INDEX);
       state.customer = Object.assign({}, o.customer);
       state.editingNumber = act === 'edit' ? o.number : null;
@@ -479,7 +587,7 @@
         const known = new Set(state.orders.map((o) => o.number));
         let added = 0;
         incoming.forEach((o) => {
-          if (o && o.number && o.cart && !known.has(o.number)) { state.orders.push(o); known.add(o.number); added++; cloudSaveOrder(o); }
+          if (o && o.number && o.cart && !known.has(o.number)) { state.orders.push(o); known.add(o.number); added++; remoteSaveOrder(o); }
         });
         state.orders.sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
         persistOrders(); renderHistory(); updateTotals();
@@ -493,6 +601,7 @@
   function bind() {
     $$('.tab').forEach((t) => t.addEventListener('click', () => {
       state.tab = t.dataset.tab;
+      state.category = 'Todos';
       $$('.tab').forEach((x) => x.classList.toggle('active', x === t));
       renderChips(); renderList(); window.scrollTo({ top: 0 });
     }));
@@ -506,7 +615,6 @@
       qTimer = setTimeout(() => { state.query = e.target.value.trim(); renderList(); }, 120);
     });
 
-    // Stepper clicks (catalog list and review drawer)
     document.addEventListener('click', (e) => {
       const btn = e.target.closest('.stepper button');
       if (btn) { changeQty(btn.closest('.stepper').dataset.key, btn.dataset.act); return; }
@@ -515,9 +623,8 @@
       const h = e.target.closest('[data-h]');
       if (h) { historyAction(h.closest('.hline').dataset.number, h.dataset.h); return; }
       if (e.target.closest('[data-close]')) { close(e.target.closest('.overlay').id); return; }
-      if (e.target.classList.contains('overlay')) close(e.target.id);
+      if (e.target.classList.contains('overlay') && e.target.id !== 'confirm') close(e.target.id);
     });
-    // Typed quantities
     document.addEventListener('change', (e) => {
       if (e.target.matches('.stepper input')) changeQty(e.target.closest('.stepper').dataset.key, 'set', e.target.value);
     });
@@ -532,6 +639,8 @@
 
     $('#btn-review').addEventListener('click', () => { fillCustomerForm(); renderReview(); open('review'); });
     $('#customer-form').addEventListener('input', () => { state.customer = readCustomerForm(); persistDraft(); });
+    $('#customer-form').addEventListener('change', () => { state.customer = readCustomerForm(); persistDraft(); });
+    $('#customer-form').addEventListener('submit', (e) => e.preventDefault());
     $('#btn-clear').addEventListener('click', async () => {
       if (!(await confirmSafe('Limpar todos os itens do pedido atual?', 'Limpar'))) return;
       state.cart = {}; state.editingNumber = null; persistDraft(); renderReview(); renderList(); updateTotals();
@@ -540,21 +649,41 @@
     $('#btn-done-download').addEventListener('click', () => state.lastOrder && downloadPdf(state.lastOrder));
     $('#btn-done-share').addEventListener('click', () => state.lastOrder && sharePdf(state.lastOrder));
     $('#btn-new-order').addEventListener('click', () => { newOrder(); close('done'); toast('Novo pedido iniciado.'); });
-    $('#btn-history').addEventListener('click', () => { renderHistory(); open('history'); });
+    $('#btn-history').addEventListener('click', () => { renderHistory(); setStorageLabel(); open('history'); });
     $('#btn-export').addEventListener('click', exportBackup);
     $('#import-file').addEventListener('change', (e) => { if (e.target.files[0]) importBackup(e.target.files[0]); e.target.value = ''; });
+
+    // GitHub online storage settings
+    $('#gh-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const cfg = { repo: $('#gh-repo').value.trim(), token: $('#gh-token').value.trim() };
+      if (!cfg.token) { const old = load(GH_KEY, {}) || {}; cfg.token = old.token; }
+      const btn = $('#gh-connect'); btn.disabled = true; btn.textContent = 'Conectando…';
+      const ok = await connectGitHub(cfg, false);
+      btn.disabled = false; btn.textContent = 'Conectar e sincronizar';
+      if (ok) { save(GH_KEY, cfg); $('#gh-token').value = ''; renderHistory(); setStorageLabel(); }
+    });
+    $('#gh-disconnect').addEventListener('click', async () => {
+      if (!(await confirmSafe('Desconectar o GitHub deste aparelho? Os pedidos continuam salvos no GitHub e aqui.', 'Desconectar'))) return;
+      drop(GH_KEY);
+      if (Remote.kind === 'github') { Remote.kind = null; Remote.ready = false; Remote.gh = null; }
+      Remote.lastError = '';
+      setStorageLabel();
+    });
   }
 
   // ---------- Init ----------
   $('#count-products').textContent = CATALOG.products.length;
   $('#count-kits').textContent = CATALOG.kits.length;
+  $('#count-displays').textContent = CATALOG.displays.length;
+  fillSelects();
   bind();
   renderChips();
   renderList();
   updateTotals();
   setStorageLabel();
-  initCloud();
+  initRemote();
 
   // Expose for automated tests / debugging.
-  window.CDTApp = { state, INDEX, Cloud, summarize: () => C.summarize(state.cart, INDEX) };
+  window.CDTApp = { state, INDEX, Remote, summarize: () => C.summarize(state.cart, INDEX) };
 })();

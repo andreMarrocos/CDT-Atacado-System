@@ -16,13 +16,14 @@
       <span id="editing-badge" class="badge" hidden></span>
     </div>
     <button class="btn ghost" id="btn-history" type="button" title="Pedidos salvos">
-      <span aria-hidden="true">🗂</span> <span class="hide-sm">Pedidos salvos</span> <span class="count" id="history-count">0</span>
+      <span aria-hidden="true">🗂</span> <span class="hide-sm">Pedidos salvos</span> <span class="count" id="history-count">0</span> <span id="cloud-badge" aria-hidden="true">💾</span>
     </button>
   </header>
 
   <nav class="tabs" role="tablist">
     <button role="tab" class="tab active" data-tab="product" id="tab-products">Produtos <span class="muted" id="count-products"></span></button>
     <button role="tab" class="tab" data-tab="kit" id="tab-kits">Kits <span class="muted" id="count-kits"></span></button>
+    <button role="tab" class="tab" data-tab="display" id="tab-displays">Expositores <span class="muted" id="count-displays"></span></button>
     <button role="tab" class="tab" data-tab="selected" id="tab-selected">No pedido <span class="count" id="count-selected">0</span></button>
   </nav>
 
@@ -50,26 +51,19 @@
         <button class="btn icon" data-close type="button" aria-label="Fechar">✕</button>
       </div>
       <div class="drawer-body">
-        <details class="customer" id="customer-box" open>
-          <summary>Dados do cliente</summary>
-          <form id="customer-form" autocomplete="on">
-            <label>Loja / Razão social <input name="store" required></label>
-            <label>CNPJ / CPF <input name="doc" inputmode="numeric"></label>
-            <label>Contato <input name="contact"></label>
-            <label>Telefone / WhatsApp <input name="phone" inputmode="tel"></label>
-            <label>Cidade / UF <input name="city"></label>
-            <label class="wide">Endereço de entrega <input name="address"></label>
-            <label>Pagamento
-              <select name="payment">
-                <option value="">A combinar</option>
-                <option>Pix</option>
-                <option>Cartão de crédito</option>
-                <option>Boleto</option>
-              </select>
-            </label>
-            <label class="wide">Observações <textarea name="notes" rows="2"></textarea></label>
+        <section class="customer" id="customer-box">
+          <h3 class="customer-title">Dados do cliente <span class="muted">(opcionais)</span></h3>
+          <form id="customer-form" autocomplete="on" novalidate>
+            <label class="wide">Nome do cliente / loja <input name="store" autocomplete="organization"></label>
+            <label>CNPJ <input name="doc" inputmode="numeric" placeholder="00.000.000/0000-00"></label>
+            <label>Telefone / WhatsApp <input name="phone" inputmode="tel" autocomplete="tel" placeholder="(00) 00000-0000"></label>
+            <label class="wide">Endereço de entrega <input name="address" autocomplete="street-address" placeholder="Rua, número, bairro, cidade/UF, CEP"></label>
+            <label class="wide check"><input type="checkbox" name="addressConfirmed"> Endereço confirmado com o cliente</label>
+            <label>Forma de pagamento <select name="paymentMethod"></select></label>
+            <label>Prazo <select name="paymentTerm"></select></label>
+            <label class="wide">Observações do pedido <textarea name="notes" rows="3" placeholder="Ex.: entregar pela manhã, falar com o gerente, trocar sabor…"></textarea></label>
           </form>
-        </details>
+        </section>
 
         <h3>Itens</h3>
         <div id="review-lines" class="review-lines"></div>
@@ -109,8 +103,25 @@
         <button class="btn icon" data-close type="button" aria-label="Fechar">✕</button>
       </div>
       <div class="drawer-body">
-        <p class="hint" id="storage-label"></p>
+        <p class="hint storage" id="storage-label"></p>
         <div id="history-list"></div>
+        <details class="gh-box" id="gh-box">
+          <summary>☁️ Salvar pedidos online (GitHub)</summary>
+          <p class="hint">Guarda cada pedido finalizado num repositório <strong>privado</strong> do GitHub, para ver em qualquer aparelho. Faça isso uma vez em cada aparelho.</p>
+          <ol class="hint">
+            <li>No GitHub, crie um repositório <strong>privado</strong> (ex.: <code>CDT-Atacado-Pedidos</code>) com um README.</li>
+            <li>Crie um token em <em>Settings → Developer settings → Fine-grained tokens</em>, só para esse repositório, com permissão <em>Contents: Read and write</em>.</li>
+            <li>Cole abaixo o repositório e o token.</li>
+          </ol>
+          <form id="gh-form" autocomplete="off">
+            <label>Repositório <input id="gh-repo" placeholder="andreMarrocos/CDT-Atacado-Pedidos" autocapitalize="off" spellcheck="false"></label>
+            <label>Token <input id="gh-token" type="password" placeholder="github_pat_… (deixe vazio para manter o atual)" autocapitalize="off" spellcheck="false"></label>
+            <div class="gh-actions">
+              <button class="btn primary" id="gh-connect" type="submit">Conectar e sincronizar</button>
+              <button class="btn ghost danger" id="gh-disconnect" type="button" hidden>Desconectar</button>
+            </div>
+          </form>
+        </details>
       </div>
       <div class="drawer-foot">
         <button class="btn ghost" id="btn-export" type="button">Exportar backup</button>
@@ -138,6 +149,8 @@
   <script src="vendor/jspdf.plugin.autotable.min.js"></script>
   <script>(window.jspdf && window.jspdf.jsPDF && window.jspdf.jsPDF.API.autoTable) || document.write('<script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.4/dist/jspdf.plugin.autotable.min.js"><\/script>');</script>
   <script src="js/catalog.js"></script>
+  <script src="js/expositores.js"></script>
+  <script src="js/github-sync.js"></script>
   <script src="js/logo-data.js"></script>
   <script src="js/order-core.js"></script>
   <script src="js/pdf.js"></script>

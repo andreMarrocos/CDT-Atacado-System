@@ -105,3 +105,27 @@ test('cleanCart drops unknown items', () => {
   const a = C.lineKey('product', 'alecrim', '30 g');
   assert.deepEqual(C.cleanCart({ [a]: 2, 'product:x|1 g': 5, [C.lineKey('product', 'alecrim', '50 g')]: 0 }, index), { [a]: 2 });
 });
+
+test('display stands are orderable with no price and no fardos', () => {
+  require('../js/expositores.js');
+  const cat = Object.assign({}, catalog, { displays: globalThis.CDT_EXPOSITORES });
+  const idx = C.buildIndex(cat);
+  assert.ok(cat.displays.length >= 10);
+  let cart = {};
+  cart = C.increment(cart, C.lineKey('display', 'expositor-gondola-1m', 'un'), idx);
+  cart = C.increment(cart, C.lineKey('display', 'expositor-gondola-1m', 'un'), idx);
+  cart = C.increment(cart, C.lineKey('product', 'alecrim', '30 g'), idx);
+  const s = C.summarize(cart, idx);
+  assert.equal(s.totalCents, 3375);
+  assert.equal(s.totalFardos, 1);
+  assert.equal(s.totalDisplays, 2);
+  assert.equal(s.saleLines, 1);
+  assert.equal(s.lines[s.lines.length - 1].type, 'display'); // displays listed last
+  cat.displays.forEach((d) => assert.ok(globalThis.CDT_EXPOSITOR_ICONS[d.icon], 'icon for ' + d.id));
+});
+
+test('payment terms include à vista and 7-day steps', () => {
+  assert.equal(C.PAYMENT_TERMS[0], 'À vista');
+  ['7 dias', '14 dias', '21 dias', '28 dias', '35 dias', '20/27/34 dias'].forEach((t) => assert.ok(C.PAYMENT_TERMS.includes(t), t));
+  assert.ok(C.PAYMENT_METHODS.includes('Pix') && C.PAYMENT_METHODS.includes('Boleto'));
+});
