@@ -1,5 +1,7 @@
 # CDT Atacado System
 
+**Online:** https://andremarrocos.github.io/CDT-Atacado-System/
+
 Sistema simples para tirar **pedidos de atacado do Clube do Tempero Lojista**, com base no catálogo *Impacto Terracota*.
 
 - **147 produtos** e **408 variações** (30 g / 50 g / 100 g / 250 g), com os preços exatos do catálogo.
@@ -10,7 +12,7 @@ Sistema simples para tirar **pedidos de atacado do Clube do Tempero Lojista**, c
 
 ## Como usar
 
-1. Abra o `index.html` no navegador (funciona offline, sem instalação) ou use a versão publicada.
+1. Abra https://andremarrocos.github.io/CDT-Atacado-System/ (ou o `index.html` local, que funciona offline).
 2. Toque em **+** / **−** em cada gramatura, ou digite a quantidade.
 3. Use a busca e os filtros (Especiarias e Ervas, Caldos, Farinhas, Sais, Temperos) e a aba **Kits**.
 4. A barra de baixo mostra o total de fardos e o **valor total** em tempo real.
