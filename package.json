@@ -1,0 +1,11 @@
+{
+  "name": "cdt-atacado-system",
+  "version": "1.0.0",
+  "description": "Pedido de atacado Clube do Tempero Lojista",
+  "private": true,
+  "scripts": {
+    "test": "node --test tests/order-core.test.js",
+    "e2e": "python3 tests/e2e_test.py",
+    "start": "python3 -m http.server 8080"
+  }
+}

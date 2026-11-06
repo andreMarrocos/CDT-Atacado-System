@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>CDT Atacado System · Pedido de Atacado</title>
+  <meta name="theme-color" content="#a64e34">
+  <link rel="icon" href="img/logo.png">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <img src="img/logo.png" alt="Clube do Tempero" class="logo">
+    <div class="topbar-title">
+      <strong>Pedido de Atacado</strong>
+      <span id="editing-badge" class="badge" hidden></span>
+    </div>
+    <button class="btn ghost" id="btn-history" type="button" title="Pedidos salvos">
+      <span aria-hidden="true">🗂</span> <span class="hide-sm">Pedidos salvos</span> <span class="count" id="history-count">0</span>
+    </button>
+  </header>
+
+  <nav class="tabs" role="tablist">
+    <button role="tab" class="tab active" data-tab="product" id="tab-products">Produtos <span class="muted" id="count-products"></span></button>
+    <button role="tab" class="tab" data-tab="kit" id="tab-kits">Kits <span class="muted" id="count-kits"></span></button>
+    <button role="tab" class="tab" data-tab="selected" id="tab-selected">No pedido <span class="count" id="count-selected">0</span></button>
+  </nav>
+
+  <section class="filters">
+    <input type="search" id="search" placeholder="Buscar produto ou uso (ex.: alho, churrasco, 100 g)…" autocomplete="off">
+    <div class="chips" id="chips"></div>
+  </section>
+
+  <main id="list" class="grid" aria-live="polite"></main>
+  <p id="empty" class="empty" hidden>Nenhum item encontrado.</p>
+
+  <footer class="cartbar" id="cartbar">
+    <div class="cartbar-info">
+      <span><strong id="bar-fardos">0</strong> fardos · <span id="bar-lines">0</span> itens</span>
+      <strong class="total" id="bar-total">R$ 0,00</strong>
+    </div>
+    <button class="btn primary" id="btn-review" type="button">Revisar e finalizar</button>
+  </footer>
+
+  <!-- Review / checkout drawer -->
+  <div class="overlay" id="review" hidden>
+    <div class="drawer" role="dialog" aria-modal="true" aria-labelledby="review-title">
+      <div class="drawer-head">
+        <h2 id="review-title">Revisar pedido</h2>
+        <button class="btn icon" data-close type="button" aria-label="Fechar">✕</button>
+      </div>
+      <div class="drawer-body">
+        <details class="customer" id="customer-box" open>
+          <summary>Dados do cliente</summary>
+          <form id="customer-form" autocomplete="on">
+            <label>Loja / Razão social <input name="store" required></label>
+            <label>CNPJ / CPF <input name="doc" inputmode="numeric"></label>
+            <label>Contato <input name="contact"></label>
+            <label>Telefone / WhatsApp <input name="phone" inputmode="tel"></label>
+            <label>Cidade / UF <input name="city"></label>
+            <label class="wide">Endereço de entrega <input name="address"></label>
+            <label>Pagamento
+              <select name="payment">
+                <option value="">A combinar</option>
+                <option>Pix</option>
+                <option>Cartão de crédito</option>
+                <option>Boleto</option>
+              </select>
+            </label>
+            <label class="wide">Observações <textarea name="notes" rows="2"></textarea></label>
+          </form>
+        </details>
+
+        <h3>Itens</h3>
+        <div id="review-lines" class="review-lines"></div>
+
+        <div class="totals" id="review-totals"></div>
+      </div>
+      <div class="drawer-foot">
+        <button class="btn danger ghost" id="btn-clear" type="button">Limpar pedido</button>
+        <button class="btn primary" id="btn-finish" type="button">Finalizar e gerar PDF</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Finished order -->
+  <div class="overlay" id="done" hidden>
+    <div class="drawer small" role="dialog" aria-modal="true" aria-labelledby="done-title">
+      <div class="drawer-head">
+        <h2 id="done-title">Pedido salvo ✅</h2>
+        <button class="btn icon" data-close type="button" aria-label="Fechar">✕</button>
+      </div>
+      <div class="drawer-body" id="done-body"></div>
+      <div class="drawer-foot">
+        <button class="btn ghost" id="btn-done-download" type="button">Baixar PDF</button>
+        <button class="btn primary" id="btn-done-share" type="button">Compartilhar</button>
+      </div>
+      <div class="drawer-foot">
+        <button class="btn ghost wide" id="btn-new-order" type="button">Começar novo pedido</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- History -->
+  <div class="overlay" id="history" hidden>
+    <div class="drawer" role="dialog" aria-modal="true" aria-labelledby="history-title">
+      <div class="drawer-head">
+        <h2 id="history-title">Pedidos salvos</h2>
+        <button class="btn icon" data-close type="button" aria-label="Fechar">✕</button>
+      </div>
+      <div class="drawer-body">
+        <p class="hint" id="storage-label"></p>
+        <div id="history-list"></div>
+      </div>
+      <div class="drawer-foot">
+        <button class="btn ghost" id="btn-export" type="button">Exportar backup</button>
+        <label class="btn ghost">Importar backup <input type="file" id="import-file" accept="application/json,.json" hidden></label>
+      </div>
+    </div>
+  </div>
+
+  <!-- In-page confirmation -->
+  <div class="overlay center" id="confirm" hidden>
+    <div class="drawer small" role="alertdialog" aria-modal="true" aria-labelledby="confirm-msg">
+      <div class="drawer-body"><p id="confirm-msg"></p></div>
+      <div class="drawer-foot">
+        <button class="btn ghost" id="confirm-cancel" type="button">Cancelar</button>
+        <button class="btn primary" id="confirm-ok" type="button">Confirmar</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status" hidden></div>
+
+  <!-- PDF libraries: local copy first, CDN fallback (same versions) -->
+  <script src="vendor/jspdf.umd.min.js"></script>
+  <script>window.jspdf || document.write('<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js"><\/script>');</script>
+  <script src="vendor/jspdf.plugin.autotable.min.js"></script>
+  <script>(window.jspdf && window.jspdf.jsPDF && window.jspdf.jsPDF.API.autoTable) || document.write('<script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.4/dist/jspdf.plugin.autotable.min.js"><\/script>');</script>
+  <script src="js/catalog.js"></script>
+  <script src="js/logo-data.js"></script>
+  <script src="js/order-core.js"></script>
+  <script src="js/pdf.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
