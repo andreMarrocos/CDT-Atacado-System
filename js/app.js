@@ -7,6 +7,7 @@
   'use strict';
   const C = window.OrderCore;
   const P = window.OrderPdf;
+  const A = window.OrderAnalysis;
   const CATALOG = window.CDT_CATALOG;
   CATALOG.displays = window.CDT_EXPOSITORES || [];
   const ICONS = window.CDT_EXPOSITOR_ICONS || {};
@@ -113,6 +114,7 @@
     save(ORDERS_KEY, state.orders);
     updateTotals();
     if (!$('#history').hidden) renderHistory();
+    if (!$('#analysis').hidden) renderAnalysis();
   }
 
   function withTimeout(promise, ms) {
@@ -487,6 +489,24 @@
     }
   }
 
+  function downloadFactoryPdf(order) {
+    try {
+      const doc = P.buildFactoryPdf(order, CATALOG);
+      return offerFile(P.factoryFileName(order), doc.output('blob'));
+    } catch (e) {
+      console.error(e); toast('Erro ao gerar PDF: ' + e.message);
+      return Promise.resolve(false);
+    }
+  }
+
+  // ---------- Analysis ----------
+  function analysisFilter() {
+    return { period: $('#an-period').value, query: $('#an-query').value.trim() };
+  }
+  function renderAnalysis() {
+    A.render($('#analysis-body'), A.compute(state.orders, INDEX, analysisFilter()));
+  }
+
   async function sharePdf(order) {
     try {
       const doc = P.buildOrderPdf(order, CATALOG);
@@ -525,6 +545,7 @@
           (c.paymentMethod || c.paymentTerm ? ' · ' + esc([c.paymentMethod, c.paymentTerm].filter(Boolean).join(' ')) : '') + '</div>' +
         '<div class="hactions">' +
           '<button class="btn" data-h="pdf" type="button">PDF</button>' +
+          '<button class="btn" data-h="factory" type="button">Fábrica</button>' +
           '<button class="btn" data-h="share" type="button">Compartilhar</button>' +
           '<button class="btn" data-h="edit" type="button">Editar</button>' +
           '<button class="btn" data-h="copy" type="button">Duplicar</button>' +
@@ -539,6 +560,7 @@
     const o = state.orders.find((x) => x.number === number);
     if (!o) return;
     if (act === 'pdf') downloadPdf(o);
+    else if (act === 'factory') downloadFactoryPdf(o);
     else if (act === 'share') sharePdf(o);
     else if (act === 'edit' || act === 'copy') {
       if (hasDraft() && state.editingNumber !== number && !(await confirmSafe('Substituir o pedido em andamento pelo pedido ' + number + '?', 'Substituir'))) return;
@@ -648,6 +670,20 @@
     $('#btn-finish').addEventListener('click', finishOrder);
     $('#btn-done-download').addEventListener('click', () => state.lastOrder && downloadPdf(state.lastOrder));
     $('#btn-done-share').addEventListener('click', () => state.lastOrder && sharePdf(state.lastOrder));
+    $('#btn-done-factory').addEventListener('click', () => state.lastOrder && downloadFactoryPdf(state.lastOrder));
+    $('#btn-analysis').addEventListener('click', () => { open('analysis'); renderAnalysis(); });
+    $('#an-period').addEventListener('change', renderAnalysis);
+    let anTimer;
+    $('#an-query').addEventListener('input', () => { clearTimeout(anTimer); anTimer = setTimeout(renderAnalysis, 150); });
+    $('#an-csv').addEventListener('click', () => {
+      const csv = A.toCsv(A.compute(state.orders, INDEX, analysisFilter()));
+      offerFile('cdt-pedidos-' + new Date().toISOString().slice(0, 10) + '.csv', new Blob([csv], { type: 'text/csv' }));
+    });
+    $('#analysis-body').addEventListener('click', (e) => {
+      const b = e.target.closest('[data-an-pdf]'); if (!b) return;
+      const o = state.orders.find((x) => x.number === b.closest('tr').dataset.number);
+      if (o) downloadPdf(o);
+    });
     $('#btn-new-order').addEventListener('click', () => { newOrder(); close('done'); toast('Novo pedido iniciado.'); });
     $('#btn-history').addEventListener('click', () => { renderHistory(); setStorageLabel(); open('history'); });
     $('#btn-export').addEventListener('click', exportBackup);

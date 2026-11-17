@@ -129,3 +129,38 @@ test('payment terms include à vista and 7-day steps', () => {
   ['7 dias', '14 dias', '21 dias', '28 dias', '35 dias', '20/27/34 dias'].forEach((t) => assert.ok(C.PAYMENT_TERMS.includes(t), t));
   assert.ok(C.PAYMENT_METHODS.includes('Pix') && C.PAYMENT_METHODS.includes('Boleto'));
 });
+
+test('analysis: totals, period filter, rankings and CSV', () => {
+  const A = require('../js/analise.js');
+  const k = (id, size) => C.lineKey('product', id, size);
+  const orders = [
+    { number: 'CDT-20261105-001', createdAt: '2026-11-05T13:00:00.000Z', totalCents: 2 * 3375,
+      customer: { store: 'Mercado A', paymentMethod: 'Pix', paymentTerm: 'À vista' }, cart: { [k('alecrim', '30 g')]: 2 } },
+    { number: 'CDT-20261110-001', createdAt: '2026-11-10T13:00:00.000Z', totalCents: 105600 + 3375,
+      customer: { store: 'Mercado B', paymentMethod: 'Boleto', paymentTerm: '14/21 dias' },
+      cart: { [C.lineKey('kit', 'kit-peixaria', '100 g')]: 1, [k('alecrim', '30 g')]: 1 } },
+    { number: 'CDT-20261020-001', createdAt: '2026-10-20T13:00:00.000Z', totalCents: 27450,
+      customer: { store: 'Mercado A' }, cart: { [k('chimichurri-defumado', '100 g')]: 1 } },
+  ];
+  const all = A.compute(orders, index, { period: 'all' });
+  assert.equal(all.count, 3);
+  assert.equal(all.revenueCents, 6750 + 108975 + 27450);
+  assert.equal(all.avgCents, Math.round((6750 + 108975 + 27450) / 3));
+  assert.equal(all.fardos, 2 + 9 + 1);
+  assert.equal(all.rows[0].number, 'CDT-20261110-001'); // newest first
+  assert.equal(all.series.length, 2); // Oct + Nov
+  assert.equal(all.series[1].cents, 6750 + 108975);
+  const a = all.customers.find((c) => c.name === 'Mercado A');
+  assert.equal(a.orders, 2); assert.equal(a.cents, 6750 + 27450);
+  assert.equal(all.items[0].name, 'Kit Peixaria');
+  assert.equal(all.items.find((i) => i.name === 'Alecrim').fardos, 3);
+  assert.equal(all.payments.find((p) => p.name === 'A combinar').orders, 1);
+  const nov = A.compute(orders, index, { period: 'this-month', now: new Date(2026, 10, 17) });
+  assert.equal(nov.count, 2);
+  assert.equal(nov.seriesUnit, 'dia');
+  const q = A.compute(orders, index, { period: 'all', query: 'mercado b' });
+  assert.equal(q.count, 1);
+  const csv = A.toCsv(all);
+  assert.ok(csv.includes('"Mercado B"') && csv.includes('"1089,75"'));
+  assert.equal(A.compute([], index, {}).avgCents, 0);
+});

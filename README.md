@@ -17,7 +17,9 @@ Sistema simples para tirar **pedidos de atacado do Clube do Tempero Lojista**, c
 3. Use a busca e os filtros (Especiarias e Ervas, Caldos, Farinhas, Sais, Temperos) e a aba **Kits**.
 4. A barra de baixo mostra o total de fardos e o **valor total** em tempo real.
 5. **Revisar e finalizar** → preencha os dados do cliente, ajuste/remova itens → **Finalizar e gerar PDF**.
-6. O PDF é baixado e pode ser **compartilhado** direto (WhatsApp etc. no celular).
+6. Baixe o PDF ou **compartilhe** direto (WhatsApp etc. no celular). O PDF mostra a **Quantidade** (ex.: “3 fardos”, “2 kits (16 fardos)”) e os **Pacotes** de cada linha.
+7. **🏭 PDF de separação (fábrica):** lista sem preços, com os kits abertos por sabor e somados, fardos e pacotes por sabor/gramatura e caixinha para marcar na separação.
+8. **📊 Análise:** total de pedidos, faturamento, ticket médio, fardos, faturamento por mês, produtos/kits e clientes que mais compram, formas de pagamento, lista de todos os pedidos e exportação em CSV (abre no Excel).
 
 ### Onde os pedidos ficam salvos
 - O pedido em andamento é salvo automaticamente (não se perde ao fechar a página).
@@ -36,6 +38,7 @@ js/order-core.js        Regras do pedido: somas em centavos, +/−, remover, tot
 js/pdf.js               Geração do PDF (jsPDF + AutoTable)
 js/expositores.js       Tipos de expositor (sem preço)
 js/github-sync.js       Salvamento online opcional em repositório privado do GitHub
+js/analise.js           Análise rápida dos pedidos (cálculos + tela)
 js/app.js               Controle da tela, salvamento e histórico
 data/catalog.json       Mesmo catálogo em JSON
 img/produtos/           Fotos dos produtos (extraídas do catálogo)

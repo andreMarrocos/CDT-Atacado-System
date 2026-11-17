@@ -145,6 +145,22 @@ def local_mode(browser, url, errors):
                    'Kit Peixaria', 'Expositor de gôndola 1 m', 'Display de balcão pequeno', 'Expositores (sem valor):', brl(expected)]:
         assert needle in text, (needle, text)
     assert 'Sal de Parrilha' not in text
+    # Clear quantity columns: "3 fardos" for products, "2 kits (16 fardos)" for kits, packages count
+    assert 'Quantidade' in text and 'Pacotes' in text
+    assert re.search(r'3 fardos\s+30', text), text
+    assert re.search(r'4 fardos\s+40', text)
+    assert '2 kits' in text and '(16 fardos)' in text
+    # Factory picking list: no prices, kit flavors expanded and summed
+    with page.expect_download() as dl:
+        page.click('#btn-done-factory')
+    fpath = os.path.join('/tmp', dl.value.suggested_filename); dl.value.save_as(fpath)
+    ftext = subprocess.run(['pdftotext', '-layout', fpath, '-'], capture_output=True, text=True).stdout
+    assert dl.value.suggested_filename.startswith('Fabrica-')
+    assert 'Separação para a fábrica' in ftext and 'R$' not in ftext
+    assert re.search(r'Tempero para Peixe[\s\S]{0,200}?100 g\s+2\s+20', ftext), ftext
+    assert re.search(r'Alecrim\s+30 g\s+3\s+30', ftext)
+    assert re.search(r'TOTAL\s+23\s+230', ftext)
+    assert 'Expositor de gôndola 1 m' in ftext
     assert page.inner_text('#history-count') == '1'            # same order updated, not duplicated
     page.keyboard.press('Escape')
 
@@ -155,6 +171,26 @@ def local_mode(browser, url, errors):
     page.click('#btn-history')
     assert cents(page.locator('.hline .htop span').nth(1).inner_text()) == expected
     assert 'Boleto 14/21/28 dias' in page.inner_text('.hline .hmeta')
+
+    page.keyboard.press('Escape')
+
+    # Analysis view
+    page.click('#btn-analysis')
+    body = page.inner_text('#analysis-body')
+    assert 'Mercado São João' in body and brl(expected) in body
+    assert page.locator('.kpi').nth(0).locator('strong').inner_text() == '1'
+    assert cents(page.locator('.kpi').nth(1).locator('strong').inner_text()) == expected
+    assert page.locator('.chart .bar').count() == 1
+    page.locator('.chart .bar').first.hover()
+    assert not page.is_hidden('.chart-tip')
+    page.fill('#an-query', 'nao existe'); page.wait_for_timeout(300)
+    assert page.locator('.kpi').nth(0).locator('strong').inner_text() == '0'
+    page.fill('#an-query', ''); page.wait_for_timeout(300)
+    with page.expect_download() as dl:
+        page.click('#an-csv')
+    assert dl.value.suggested_filename.endswith('.csv')
+    page.keyboard.press('Escape')
+    page.click('#btn-history')
 
     # Delete: cancel keeps, confirm removes
     page.locator('.hline [data-h=del]').click(); page.click('#confirm-cancel')
