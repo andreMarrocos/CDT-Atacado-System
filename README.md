@@ -55,6 +55,10 @@ tests/                  Testes unitários (Node) e ponta a ponta (Playwright)
 
 O script de geração confere **todos os 33 preços de kit** contra a soma dos produtos que compõem cada kit — todos batem centavo a centavo, o que valida a leitura dos preços individuais. Gramaturas marcadas com “-” no catálogo não aparecem para venda. Farinha de Tapioca em Flocos e os sais (Parrilha, Açafrão, Colorau, Rosa do Himalaia) são vendidos em 250 g, como no catálogo.
 
+## Publicar uma atualização
+
+Antes de commitar mudanças em `js/` ou `css/`, rode `python3 tools/bump_version.py`: ele muda o `?v=` dos arquivos no `index.html` para os celulares não ficarem com a versão antiga em cache.
+
 ## Testes
 
 ```bash
