@@ -54,7 +54,7 @@
     });
 
     // Item table
-    const sum = C.summarize(order.cart, C.buildIndex(catalog));
+    const sum = C.summarize(order.cart, C.buildIndex(catalog), order.packaging);
     const kitById = {};
     catalog.kits.forEach((k) => { kitById[k.id] = k; });
     const prodById = {};
@@ -66,7 +66,7 @@
       let name = l.name;
       if (l.type === 'kit') {
         const kit = kitById[l.id];
-        name += '\n(' + kit.fardos + ' fardos: ' + kit.items.map((id) => prodById[id].name).join(', ') + ')';
+        name += '\n(' + kit.fardos + ' sabores: ' + kit.items.map((id) => prodById[id].name).join(', ') + ')';
       }
       return [
         String(i + 1),
@@ -103,7 +103,7 @@
         const h = doc.internal.pageSize.getHeight();
         doc.setFontSize(7.5);
         doc.setTextColor(110);
-        doc.text('Clube do Tempero Lojista · WhatsApp (41) 98834-0629 · Valores em R$ por fardo com 10 unidades · Condições de pagamento confirmadas na cotação.',
+        doc.text('Clube do Tempero Lojista · WhatsApp (41) 98834-0629 · Valores em R$ por fardo ou fitinha com 10 unidades · Condições de pagamento confirmadas na cotação.',
           pageW / 2, h - 8, { align: 'center' });
         doc.text('Página ' + doc.internal.getNumberOfPages(), pageW - margin, h - 4, { align: 'right' });
       },
@@ -130,7 +130,7 @@
     const x = pageW - margin - boxW;
     doc.setDrawColor.apply(doc, GREEN);
     doc.setLineWidth(0.4);
-    const boxH = displayLines.length ? 35 : 30;
+    const boxH = 30 + (displayLines.length ? 5 : 0) + (sum.totalFitinhas ? 5 : 0);
     doc.roundedRect(x, y, boxW, boxH, 2, 2);
     doc.setFontSize(9);
     doc.setTextColor(40);
@@ -138,8 +138,9 @@
     let ty = y + 6;
     const row = (label, value) => { doc.text(label, x + 4, ty); doc.text(String(value), x + boxW - 4, ty, { align: 'right' }); ty += 5; };
     row('Itens de produtos/kits:', saleLines.length);
-    row('Total de fardos:', sum.totalFardos);
-    row('Total de pacotes (10 por fardo):', sum.totalUnits);
+    row('Total de fardos:', sum.totalFardosOnly);
+    if (sum.totalFitinhas) row('Total de fitinhas:', sum.totalFitinhas);
+    row('Total de pacotes (10 por fardo/fitinha):', sum.totalUnits);
     if (displayLines.length) row('Expositores (sem valor):', sum.totalDisplays);
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(12);
@@ -160,32 +161,33 @@
     return doc;
   }
 
-  // "3 fardos" for products, "2 kits\n(16 fardos)" for kits.
+  // "3 fardos" / "3 fitinhas" for products, "2 kits\n(16 fardos)" for kits.
   function quantityLabel(l) {
-    if (l.type === 'kit') return l.qty + (l.qty === 1 ? ' kit' : ' kits') + '\n(' + l.fardos + ' fardos)';
-    return l.qty + (l.qty === 1 ? ' fardo' : ' fardos');
+    return C.quantityText(l).replace(' (', '\n(');
   }
 
   // Picking list for the factory: no prices, kits expanded into flavors, totals per flavor and size.
   function factoryLines(order, catalog) {
-    const sum = C.summarize(order.cart, C.buildIndex(catalog));
+    const sum = C.summarize(order.cart, C.buildIndex(catalog), order.packaging);
     const prodById = {};
     catalog.products.forEach((p) => { prodById[p.id] = p; });
     const kitById = {};
     catalog.kits.forEach((k) => { kitById[k.id] = k; });
     const agg = {};
-    const add = (pid, size, fardos, origin) => {
-      const k = pid + '|' + size;
-      if (!agg[k]) agg[k] = { code: prodById[pid].code, name: prodById[pid].name, size: size, fardos: 0, origins: [] };
+    const add = (pid, size, fardos, origin, pack) => {
+      const k = pid + '|' + size + '|' + pack;
+      if (!agg[k]) agg[k] = { code: prodById[pid].code, name: prodById[pid].name, size: size, pack: pack, fardos: 0, origins: [] };
       agg[k].fardos += fardos;
       if (origin && agg[k].origins.indexOf(origin) === -1) agg[k].origins.push(origin);
     };
     sum.lines.forEach((l) => {
-      if (l.type === 'product') add(l.id, l.size, l.qty, 'avulso');
-      else if (l.type === 'kit') kitById[l.id].items.forEach((pid) => add(pid, l.size, l.qty, l.name));
+      if (l.type === 'product') add(l.id, l.size, l.qty, 'avulso', l.pack);
+      else if (l.type === 'kit') kitById[l.id].items.forEach((pid) => add(pid, l.size, l.qty, l.name, l.pack));
     });
-    const items = Object.values(agg).sort((a, b) => a.name.localeCompare(b.name, 'pt-BR') || (parseInt(a.size, 10) - parseInt(b.size, 10)));
-    return { items: items, displays: sum.lines.filter((l) => l.type === 'display'), totalFardos: sum.totalFardos };
+    const items = Object.values(agg).sort((a, b) => a.name.localeCompare(b.name, 'pt-BR') ||
+      (parseInt(a.size, 10) - parseInt(b.size, 10)) || a.pack.localeCompare(b.pack));
+    return { items: items, displays: sum.lines.filter((l) => l.type === 'display'), totalFardos: sum.totalFardos,
+      totalFardosOnly: sum.totalFardosOnly, totalFitinhas: sum.totalFitinhas };
   }
 
   function buildFactoryPdf(order, catalog) {
@@ -218,10 +220,11 @@
 
     doc.autoTable({
       startY: y + 1,
-      head: [['', 'Cód.', 'Sabor', 'Gramatura', 'Fardos', 'Pacotes']],
+      head: [['', 'Cód.', 'Sabor', 'Gramatura', 'Embalagem', 'Qtd', 'Pacotes']],
       body: f.items.map((it) => ['', it.code, it.name + (it.origins.some((o) => o !== 'avulso') ? '\n(' + it.origins.join(' + ') + ')' : ''),
-        it.size, String(it.fardos), String(it.fardos * 10)]),
-      foot: [['', '', 'TOTAL', '', String(f.totalFardos), String(f.totalFardos * 10)]],
+        it.size, it.pack === 'fitinha' ? 'FITINHA' : 'Fardo', String(it.fardos), String(it.fardos * 10)]),
+      foot: [['', '', 'TOTAL', '', (f.totalFitinhas ? f.totalFardosOnly + ' fardos\n' + f.totalFitinhas + ' fitinhas' : 'Fardos'),
+        String(f.totalFardos), String(f.totalFardos * 10)]],
       theme: 'grid',
       headStyles: { fillColor: GREEN, textColor: 255, fontSize: 10, halign: 'center' },
       footStyles: { fillColor: [235, 242, 236], textColor: 20, fontSize: 11, fontStyle: 'bold', halign: 'center' },
@@ -230,9 +233,14 @@
         0: { cellWidth: 9 },
         1: { cellWidth: 13, halign: 'center' },
         2: { cellWidth: 'auto' },
-        3: { cellWidth: 24, halign: 'center', fontStyle: 'bold' },
-        4: { cellWidth: 22, halign: 'center', fontStyle: 'bold', fontSize: 13 },
-        5: { cellWidth: 22, halign: 'center', fontSize: 11 },
+        3: { cellWidth: 22, halign: 'center', fontStyle: 'bold' },
+        4: { cellWidth: 24, halign: 'center', fontStyle: 'bold' },
+        5: { cellWidth: 16, halign: 'center', fontStyle: 'bold', fontSize: 13 },
+        6: { cellWidth: 20, halign: 'center', fontSize: 11 },
+      },
+      didParseCell: function (data) {
+        // Highlight clip-strip rows so the factory does not miss them
+        if (data.section === 'body' && data.row.raw[4] === 'FITINHA') data.cell.styles.fillColor = [255, 243, 214];
       },
       didDrawCell: function (data) {
         // Empty checkbox in the first column for ticking items while picking
@@ -245,7 +253,7 @@
       didDrawPage: function () {
         const h = doc.internal.pageSize.getHeight();
         doc.setFontSize(8); doc.setTextColor(110);
-        doc.text('Pedido ' + order.number + ' · 1 fardo = 10 pacotes · Kits já somados por sabor', margin, h - 6);
+        doc.text('Pedido ' + order.number + ' · 1 fardo = 1 fitinha = 10 pacotes · Kits já somados por sabor', margin, h - 6);
         doc.text('Página ' + doc.internal.getNumberOfPages(), pageW - margin, h - 6, { align: 'right' });
       },
     });

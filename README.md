@@ -14,7 +14,8 @@ Sistema simples para tirar **pedidos de atacado do Clube do Tempero Lojista**, c
 
 1. Abra https://andremarrocos.github.io/CDT-Atacado-System/ (ou o `index.html` local, que funciona offline).
 2. Toque em **+** / **−** em cada gramatura, ou digite a quantidade.
-3. Use a busca e os filtros (Especiarias e Ervas, Caldos, Farinhas, Sais, Temperos) e a aba **Kits**.
+3. Na revisão, escolha **Fardo** ou **Fitinha** em cada item (ou “Tudo em…”). Os dois têm 10 pacotes e o mesmo preço; PDF e separação da fábrica mostram a embalagem.
+4. Use a busca e os filtros (Especiarias e Ervas, Caldos, Farinhas, Sais, Temperos) e a aba **Kits**.
 4. A barra de baixo mostra o total de fardos e o **valor total** em tempo real.
 5. **Revisar e finalizar** → preencha os dados do cliente, ajuste/remova itens → **Finalizar e gerar PDF**.
 6. Baixe o PDF ou **compartilhe** direto (WhatsApp etc. no celular). O PDF mostra a **Quantidade** (ex.: “3 fardos”, “2 kits (16 fardos)”) e os **Pacotes** de cada linha.

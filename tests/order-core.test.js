@@ -164,3 +164,20 @@ test('analysis: totals, period filter, rankings and CSV', () => {
   assert.ok(csv.includes('"Mercado B"') && csv.includes('"1089,75"'));
   assert.equal(A.compute([], index, {}).avgCents, 0);
 });
+
+test('fitinha packaging: same price, counted apart from fardos, cleaned with the cart', () => {
+  const a = C.lineKey('product', 'alecrim', '30 g');
+  const kit = C.lineKey('kit', 'kit-peixaria', '30 g');
+  const cart = { [a]: 3, [kit]: 1 };
+  const plain = C.summarize(cart, index);
+  const fit = C.summarize(cart, index, { [a]: 'fitinha', [kit]: 'fitinha' });
+  assert.equal(fit.totalCents, plain.totalCents);
+  assert.equal(fit.totalFardos, 11);
+  assert.equal(fit.totalFitinhas, 11);
+  assert.equal(fit.totalFardosOnly, 0);
+  assert.equal(plain.totalFitinhas, 0);
+  assert.deepEqual(fit.lines.map(C.quantityText), ['3 fitinhas', '1 kit em fitinha (8 fitinhas)']);
+  assert.deepEqual(plain.lines.map(C.quantityText), ['3 fardos', '1 kit (8 fardos)']);
+  // removed lines and unknown values are dropped
+  assert.deepEqual(C.cleanPackaging({ [a]: 'fitinha', [kit]: 'caixa', 'product:x|1 g': 'fitinha' }, { [a]: 2 }, index), { [a]: 'fitinha' });
+});

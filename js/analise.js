@@ -47,7 +47,7 @@
     let revenue = 0, fardos = 0, displays = 0;
     const byMonth = {}, byDay = {}, byCustomer = {}, byPayment = {}, byItem = {};
     const rows = list.map((o) => {
-      const s = C.summarize(o.cart || {}, index);
+      const s = C.summarize(o.cart || {}, index, o.packaging);
       const cents = orderCents(o, index);
       const c = o.customer || {};
       revenue += cents; fardos += s.totalFardos; displays += s.totalDisplays;

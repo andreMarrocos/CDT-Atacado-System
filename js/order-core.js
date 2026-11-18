@@ -84,8 +84,15 @@
     return next;
   }
 
+  // Packaging of a line: 'fardo' (default) or 'fitinha' (clip strip). Both hold 10 packages, same price.
+  function packOf(packaging, key, meta) {
+    if (meta && meta.type === 'display') return null;
+    return packaging && packaging[key] === 'fitinha' ? 'fitinha' : 'fardo';
+  }
+
   // Expand the cart into ordered lines with subtotals, plus overall totals.
-  function summarize(cart, index) {
+  // packaging (optional): { [lineKey]: 'fitinha' } - lines not listed are sent in fardos.
+  function summarize(cart, index, packaging) {
     const lines = [];
     Object.keys(cart).forEach((key) => {
       const meta = index[key];
@@ -94,7 +101,8 @@
       lines.push(Object.assign({}, meta, {
         qty: qty,
         subtotalCents: meta.unitCents * qty,
-        fardos: meta.fardosPerUnit * qty,
+        fardos: meta.fardosPerUnit * qty, // packs of 10 (fardos or fitinhas)
+        pack: packOf(packaging, key, meta),
       }));
     });
     // Products first, then kits, then display stands; alphabetical by name, then by size.
@@ -107,6 +115,7 @@
     const totalCents = lines.reduce((s, l) => s + l.subtotalCents, 0);
     const totalQty = lines.reduce((s, l) => s + l.qty, 0);
     const totalFardos = lines.reduce((s, l) => s + l.fardos, 0);
+    const totalFitinhas = lines.filter((l) => l.pack === 'fitinha').reduce((s, l) => s + l.fardos, 0);
     const totalDisplays = lines.filter((l) => l.type === 'display').reduce((s, l) => s + l.qty, 0);
     const saleLines = lines.filter((l) => l.type !== 'display').length;
     return {
@@ -115,12 +124,31 @@
       totalQty: totalQty,
       totalFardos: totalFardos,
       totalDisplays: totalDisplays,
+      totalFitinhas: totalFitinhas,
+      totalFardosOnly: totalFardos - totalFitinhas,
       saleLines: saleLines,
       totalUnits: totalFardos * 10, // each fardo holds 10 packages
     };
   }
 
   // Drop entries that no longer exist in the catalog (e.g. after a catalog update).
+  // Keep packaging only for lines that are still in the cart and can be packed.
+  function cleanPackaging(packaging, cart, index) {
+    const next = {};
+    Object.keys(packaging || {}).forEach((k) => {
+      if (packaging[k] === 'fitinha' && cart[k] && index[k] && index[k].type !== 'display') next[k] = 'fitinha';
+    });
+    return next;
+  }
+
+  // "3 fardos", "1 fitinha", "2 kits (16 fardos)", "1 kit em fitinha (8 fitinhas)"
+  function quantityText(l) {
+    const unit = (n) => l.pack === 'fitinha' ? (n === 1 ? 'fitinha' : 'fitinhas') : (n === 1 ? 'fardo' : 'fardos');
+    if (l.type === 'display') return l.qty + ' un.';
+    if (l.type === 'kit') return l.qty + (l.qty === 1 ? ' kit' : ' kits') + (l.pack === 'fitinha' ? ' em fitinha' : '') + ' (' + l.fardos + ' ' + unit(l.fardos) + ')';
+    return l.qty + ' ' + unit(l.qty);
+  }
+
   function cleanCart(cart, index) {
     const next = {};
     Object.keys(cart || {}).forEach((k) => {
@@ -156,6 +184,6 @@
   return {
     PAYMENT_TERMS, PAYMENT_METHODS,
     toCents, formatBRL, buildIndex, lineKey, sanitizeQty,
-    setQty, increment, decrement, removeLine, summarize, cleanCart, nextOrderNumber,
+    setQty, increment, decrement, removeLine, summarize, cleanCart, cleanPackaging, quantityText, nextOrderNumber,
   };
 });

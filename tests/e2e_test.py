@@ -157,9 +157,9 @@ def local_mode(browser, url, errors):
     ftext = subprocess.run(['pdftotext', '-layout', fpath, '-'], capture_output=True, text=True).stdout
     assert dl.value.suggested_filename.startswith('Fabrica-')
     assert 'Separação para a fábrica' in ftext and 'R$' not in ftext
-    assert re.search(r'Tempero para Peixe[\s\S]{0,200}?100 g\s+2\s+20', ftext), ftext
-    assert re.search(r'Alecrim\s+30 g\s+3\s+30', ftext)
-    assert re.search(r'TOTAL\s+23\s+230', ftext)
+    assert re.search(r'Tempero para Peixe[\s\S]{0,200}?100 g\s+Fardo\s+2\s+20', ftext), ftext
+    assert re.search(r'Alecrim\s+30 g\s+Fardo\s+3\s+30', ftext)
+    assert re.search(r'TOTAL\s+Fardos\s+23\s+230', ftext), ftext
     assert 'Expositor de gôndola 1 m' in ftext
     assert page.inner_text('#history-count') == '1'            # same order updated, not duplicated
     page.keyboard.press('Escape')
@@ -341,6 +341,56 @@ def github_mode(browser, url, errors):
     print('GitHub online storage OK')
 
 
+def fitinha_mode(browser, url, errors):
+    """Per-line packaging: fardo (default) or fitinha, same price, 10 packages each."""
+    ctx = browser.new_context(accept_downloads=True, viewport={'width': 360, 'height': 780})
+    page = ctx.new_page()
+    page.on('pageerror', lambda e: errors.append(str(e)))
+    page.goto(url)
+    plus(page, 'product:alecrim|30 g', 3)
+    plus(page, 'product:oregano|30 g', 2)
+    page.click('#tab-kits'); plus(page, 'kit:kit-peixaria|30 g')
+    total = cents(page.inner_text('#bar-total'))
+    page.click('#btn-review')
+    page.locator('.rline', has_text='Alecrim').locator('[data-pack=fitinha]').click()
+    page.locator('.rline', has_text='Kit Peixaria').locator('[data-pack=fitinha]').click()
+    assert cents(page.inner_text('#review-totals .grand')) == total          # same price
+    tot = page.inner_text('#review-totals')
+    assert 'Total de fardos\n2' in tot.replace('\t', '\n') or re.search(r'Total de fardos\s+2', tot), tot
+    assert re.search(r'Total de fitinhas\s+11', tot), tot
+    assert '3 fitinhas' in page.inner_text('.rline:has-text("Alecrim")')
+    # packaging survives reload (draft)
+    page.keyboard.press('Escape'); page.reload(); page.click('#btn-review')
+    assert page.locator('.rline', has_text='Alecrim').locator('[data-pack=fitinha].on').count() == 1
+    # bulk switch, then back
+    page.click('[data-pack-all=fitinha]')
+    assert page.locator('.pack-toggle .seg.on[data-pack=fitinha]').count() == 3
+    page.click('[data-pack-all=fardo]')
+    assert page.locator('.pack-toggle .seg.on[data-pack=fitinha]').count() == 0
+    page.locator('.rline', has_text='Alecrim').locator('[data-pack=fitinha]').click()
+    page.locator('.rline', has_text='Kit Peixaria').locator('[data-pack=fitinha]').click()
+    path, text = finish_and_get_pdf(page)
+    assert re.search(r'3 fitinhas\s+30', text), text
+    assert re.search(r'2 fardos\s+20', text), text
+    assert re.search(r'1 kit em\s[\s\S]{0,120}?fitinha', text) and '(8 fitinhas)' in text and '8 sabores:' in text
+    assert re.search(r'Total de fitinhas:\s+11', text) and re.search(r'Total de fardos:\s+2', text)
+    assert brl(total) in text
+    with page.expect_download() as dl:
+        page.click('#btn-done-factory')
+    fpath = os.path.join('/tmp', dl.value.suggested_filename); dl.value.save_as(fpath)
+    ftext = subprocess.run(['pdftotext', '-layout', fpath, '-'], capture_output=True, text=True).stdout
+    assert re.search(r'Alecrim\s+30 g\s+FITINHA\s+3\s+30', ftext), ftext
+    assert re.search(r'Orégano\s+30 g\s+Fardo\s+2\s+20', ftext), ftext
+    assert re.search(r'Tempero para Peixe[\s\S]{0,200}?30 g\s+FITINHA\s+1\s+10', ftext), ftext
+    # editing the saved order keeps packaging
+    page.keyboard.press('Escape'); page.evaluate("document.getElementById('btn-new-order').click()")
+    page.click('#btn-history'); page.locator('.hline [data-h=edit]').click()
+    page.click('#btn-review')
+    assert page.locator('.pack-toggle .seg.on[data-pack=fitinha]').count() == 2
+    ctx.close()
+    print('Fitinha OK')
+
+
 def main():
     srv = serve()
     url = f'http://127.0.0.1:{srv.server_port}/index.html'
@@ -350,6 +400,7 @@ def main():
         local_mode(browser, url, errors)
         claude_mode(browser, url, errors)
         github_mode(browser, url, errors)
+        fitinha_mode(browser, url, errors)
         browser.close()
     srv.shutdown()
     assert not errors, errors

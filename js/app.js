@@ -48,8 +48,10 @@
 
   // ---------- State ----------
   const draft = load(DRAFT_KEY, {});
+  const SUM = () => C.summarize(state.cart, INDEX, state.pack);
   const state = {
     cart: C.cleanCart(draft.cart, INDEX),
+    pack: {}, // { [lineKey]: 'fitinha' } - everything else goes in fardos
     customer: draft.customer || {},
     editingNumber: draft.editingNumber || null,
     orders: load(ORDERS_KEY, []),
@@ -58,6 +60,7 @@
     query: '',
     lastOrder: null,
   };
+  state.pack = C.cleanPackaging(draft.pack, state.cart, INDEX);
 
   // ---------- Online storage ----------
   // Remote.kind: 'claude' (artifact database), 'github' (private repo) or null (this device only).
@@ -95,7 +98,7 @@
     if (!Remote.ready || Remote.kind !== 'claude') return; // drafts sync only in the claude.ai version
     clearTimeout(draftTimer);
     draftTimer = setTimeout(() => {
-      const body = JSON.parse(JSON.stringify({ cart: state.cart, customer: state.customer, editingNumber: state.editingNumber || null, savedAt: new Date().toISOString() }));
+      const body = JSON.parse(JSON.stringify({ cart: state.cart, pack: state.pack, customer: state.customer, editingNumber: state.editingNumber || null, savedAt: new Date().toISOString() }));
       remoteWrite('draft', () => userCol().doc('draft').set(body));
     }, 1200);
   }
@@ -142,9 +145,10 @@
       mergeRemoteOrders(remote);
       if (!Object.keys(state.cart).length && remoteDraft && remoteDraft.cart && Object.keys(remoteDraft.cart).length) {
         state.cart = C.cleanCart(remoteDraft.cart, INDEX);
+        state.pack = C.cleanPackaging(remoteDraft.pack, state.cart, INDEX);
         state.customer = Object.assign({}, remoteDraft.customer || {});
         state.editingNumber = remoteDraft.editingNumber || null;
-        save(DRAFT_KEY, { cart: state.cart, customer: state.customer, editingNumber: state.editingNumber });
+        save(DRAFT_KEY, { cart: state.cart, pack: state.pack, customer: state.customer, editingNumber: state.editingNumber });
         renderList(); updateTotals();
       }
       return true;
@@ -222,7 +226,7 @@
   }
 
   function persistDraft() {
-    save(DRAFT_KEY, { cart: state.cart, customer: state.customer, editingNumber: state.editingNumber });
+    save(DRAFT_KEY, { cart: state.cart, pack: state.pack, customer: state.customer, editingNumber: state.editingNumber });
     remoteSaveDraft();
   }
   // Save the order list locally and, when connected, the changed order online.
@@ -338,7 +342,7 @@
 
   // Refresh one card's steppers and subtotal without re-rendering (keeps input focus).
   function updateCard(card) {
-    let sub = 0, fardos = 0, units = 0, isDisplay = false;
+    let sub = 0, fardos = 0, units = 0, isDisplay = false, anyFit = false;
     $$('.variant', card).forEach((row) => {
       const key = row.dataset.vkey;
       const meta = INDEX[key];
@@ -351,14 +355,15 @@
       fardos += q * meta.fardosPerUnit;
       units += q;
       if (meta.type === 'display') isDisplay = true;
+      if (q > 0 && state.pack[key] === 'fitinha') anyFit = true;
     });
     card.classList.toggle('has-qty', units > 0);
     $('.card-sub', card).textContent = units === 0 ? '' :
-      isDisplay ? units + ' expositor(es) no pedido' : fardos + ' fardo(s) · ' + C.formatBRL(sub);
+      isDisplay ? units + ' expositor(es) no pedido' : fardos + (anyFit ? ' fardo(s)/fitinha(s) · ' : ' fardo(s) · ') + C.formatBRL(sub);
   }
 
   function updateTotals() {
-    const s = C.summarize(state.cart, INDEX);
+    const s = SUM();
     $('#bar-fardos').textContent = s.totalFardos;
     $('#bar-lines').textContent = s.lines.length;
     $('#bar-total').textContent = C.formatBRL(s.totalCents);
@@ -375,11 +380,34 @@
     if (action === 'inc') state.cart = C.increment(state.cart, key, INDEX);
     else if (action === 'dec') state.cart = C.decrement(state.cart, key, INDEX);
     else state.cart = C.setQty(state.cart, key, value, INDEX);
+    state.pack = C.cleanPackaging(state.pack, state.cart, INDEX);
     persistDraft();
     const itemKey = key.split('|')[0];
     $$('.card[data-item="' + itemKey + '"]').forEach(updateCard);
     updateTotals();
     if (!$('#review').hidden) renderReview();
+  }
+
+  // ---------- Packaging (fardo / fitinha) ----------
+  function setPack(key, pack) {
+    const next = Object.assign({}, state.pack);
+    if (pack === 'fitinha') next[key] = 'fitinha'; else delete next[key];
+    state.pack = C.cleanPackaging(next, state.cart, INDEX);
+    persistDraft();
+    renderReview();
+    $$('.card[data-item="' + key.split('|')[0] + '"]').forEach(updateCard);
+    updateTotals();
+  }
+  function setPackAll(pack) {
+    const next = {};
+    if (pack === 'fitinha') Object.keys(state.cart).forEach((k) => { next[k] = 'fitinha'; });
+    state.pack = C.cleanPackaging(next, state.cart, INDEX);
+    persistDraft(); renderReview(); $$('.card').forEach(updateCard); updateTotals();
+  }
+  function packToggleHtml(l) {
+    if (l.type === 'display') return '';
+    const btn = (p, label) => '<button type="button" class="seg' + (l.pack === p ? ' on' : '') + '" data-pack="' + p + '" data-key="' + esc(l.key) + '" aria-pressed="' + (l.pack === p) + '">' + label + '</button>';
+    return '<div class="pack-toggle" role="group" aria-label="Embalagem">' + btn('fardo', 'Fardo') + btn('fitinha', 'Fitinha') + '</div>';
   }
 
   // ---------- Review drawer ----------
@@ -391,24 +419,27 @@
 
   function lineMeta(l) {
     if (l.type === 'display') return 'Expositor · ' + l.qty + ' un. · sem valor';
-    return (l.type === 'kit' ? 'Kit · ' + l.fardosPerUnit + ' fardos cada · ' : '#' + l.code + ' · ') +
+    return (l.type === 'kit' ? 'Kit · ' : '#' + l.code + ' · ') + C.quantityText(l) + ' · ' +
       C.formatBRL(l.unitCents) + ' × ' + l.qty;
   }
 
   function renderReview() {
-    const s = C.summarize(state.cart, INDEX);
+    const s = SUM();
     $('#review-lines').innerHTML = s.lines.length ? s.lines.map((l) =>
       '<div class="rline">' + imageHtml(l) +
         '<div><div class="rname">' + esc(l.name) + (l.type === 'display' ? '' : ' · ' + esc(l.size)) + '</div>' +
         '<div class="rmeta">' + lineMeta(l) + '</div>' +
         (l.type === 'display' ? '' : '<div class="rsub">' + C.formatBRL(l.subtotalCents) + '</div>') + '</div>' +
+        (l.type === 'display' ? '' : '<div class="rpack"><span>Enviar em:</span>' + packToggleHtml(l) + '</div>') +
         '<div class="ractions">' + stepperHtml(l.key) +
           '<button type="button" class="remove" data-remove="' + esc(l.key) + '">Remover</button></div>' +
       '</div>').join('') : '<p class="empty">Pedido vazio.</p>';
+    $('#review-pack-all').hidden = s.saleLines === 0;
     $('#review-totals').innerHTML =
       '<div><span>Itens (linhas)</span><span>' + s.lines.length + '</span></div>' +
-      '<div><span>Total de fardos</span><span>' + s.totalFardos + '</span></div>' +
-      '<div><span>Total de pacotes (10 por fardo)</span><span>' + s.totalUnits + '</span></div>' +
+      '<div><span>Total de fardos</span><span>' + s.totalFardosOnly + '</span></div>' +
+      (s.totalFitinhas ? '<div><span>Total de fitinhas</span><span>' + s.totalFitinhas + '</span></div>' : '') +
+      '<div><span>Total de pacotes (10 por fardo/fitinha)</span><span>' + s.totalUnits + '</span></div>' +
       (s.totalDisplays ? '<div><span>Expositores</span><span>' + s.totalDisplays + '</span></div>' : '') +
       '<div class="grand"><span>TOTAL</span><span>' + C.formatBRL(s.totalCents) + '</span></div>';
     $('#btn-finish').disabled = s.lines.length === 0;
@@ -448,11 +479,11 @@
   function finishOrder() {
     state.customer = readCustomerForm();
     persistDraft();
-    const s = C.summarize(state.cart, INDEX);
+    const s = SUM();
     if (!s.lines.length) { toast('O pedido está vazio.'); return; }
 
     const now = new Date().toISOString();
-    const base = { customer: state.customer, cart: Object.assign({}, state.cart), totalCents: s.totalCents, totalFardos: s.totalFardos, totalDisplays: s.totalDisplays };
+    const base = { customer: state.customer, cart: Object.assign({}, state.cart), packaging: Object.assign({}, state.pack), totalCents: s.totalCents, totalFardos: s.totalFardos, totalFitinhas: s.totalFitinhas, totalDisplays: s.totalDisplays };
     let order;
     if (state.editingNumber) {
       const i = state.orders.findIndex((o) => o.number === state.editingNumber);
@@ -472,7 +503,7 @@
     const where = Remote.ready ? 'salvo online e neste aparelho' : 'salvo neste aparelho';
     $('#done-body').innerHTML =
       '<p><strong>' + esc(order.number) + '</strong>' + (order.customer.store ? ' · ' + esc(order.customer.store) : '') + '</p>' +
-      '<p>' + s.lines.length + ' itens · ' + s.totalFardos + ' fardos' + (s.totalDisplays ? ' · ' + s.totalDisplays + ' expositor(es)' : '') +
+      '<p>' + s.lines.length + ' itens · ' + s.totalFardosOnly + ' fardos' + (s.totalFitinhas ? ' · ' + s.totalFitinhas + ' fitinhas' : '') + (s.totalDisplays ? ' · ' + s.totalDisplays + ' expositor(es)' : '') +
         ' · <strong>' + C.formatBRL(s.totalCents) + '</strong></p>' +
       '<p class="hint">Pedido ' + where + ' (veja em “Pedidos salvos”). Baixe o PDF ou compartilhe direto pelo WhatsApp.</p>';
     open('done');
@@ -527,7 +558,7 @@
   }
 
   function newOrder() {
-    state.cart = {}; state.customer = {}; state.editingNumber = null;
+    state.cart = {}; state.pack = {}; state.customer = {}; state.editingNumber = null;
     persistDraft(); fillCustomerForm(); renderList(); updateTotals();
   }
 
@@ -536,7 +567,7 @@
     const list = $('#history-list');
     if (!state.orders.length) { list.innerHTML = '<p class="empty">Nenhum pedido salvo ainda.</p>'; return; }
     list.innerHTML = state.orders.map((o) => {
-      const s = C.summarize(o.cart, INDEX);
+      const s = C.summarize(o.cart, INDEX, o.packaging);
       const c = o.customer || {};
       return '<div class="hline" data-number="' + esc(o.number) + '">' +
         '<div class="htop"><span>' + esc(o.number) + ' · ' + esc(c.store || 'Sem nome') + '</span><span>' + C.formatBRL(s.totalCents) + '</span></div>' +
@@ -565,6 +596,7 @@
     else if (act === 'edit' || act === 'copy') {
       if (hasDraft() && state.editingNumber !== number && !(await confirmSafe('Substituir o pedido em andamento pelo pedido ' + number + '?', 'Substituir'))) return;
       state.cart = C.cleanCart(o.cart, INDEX);
+      state.pack = C.cleanPackaging(o.packaging, state.cart, INDEX);
       state.customer = Object.assign({}, o.customer);
       state.editingNumber = act === 'edit' ? o.number : null;
       persistDraft(); fillCustomerForm(); renderList(); updateTotals();
@@ -594,7 +626,7 @@
 
   function exportBackup() {
     const data = { app: 'CDT Atacado System', exportedAt: new Date().toISOString(), orders: state.orders,
-      draft: { cart: state.cart, customer: state.customer, editingNumber: state.editingNumber } };
+      draft: { cart: state.cart, pack: state.pack, customer: state.customer, editingNumber: state.editingNumber } };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     offerFile('cdt-atacado-backup-' + new Date().toISOString().slice(0, 10) + '.json', blob);
   }
@@ -641,7 +673,11 @@
       const btn = e.target.closest('.stepper button');
       if (btn) { changeQty(btn.closest('.stepper').dataset.key, btn.dataset.act); return; }
       const rm = e.target.closest('[data-remove]');
-      if (rm) { state.cart = C.removeLine(state.cart, rm.dataset.remove); persistDraft(); renderReview(); renderList(); updateTotals(); return; }
+      const pk = e.target.closest('[data-pack]');
+      if (pk) { setPack(pk.dataset.key, pk.dataset.pack); return; }
+      const all = e.target.closest('[data-pack-all]');
+      if (all) { setPackAll(all.dataset.packAll); return; }
+      if (rm) { state.cart = C.removeLine(state.cart, rm.dataset.remove); state.pack = C.cleanPackaging(state.pack, state.cart, INDEX); persistDraft(); renderReview(); renderList(); updateTotals(); return; }
       const h = e.target.closest('[data-h]');
       if (h) { historyAction(h.closest('.hline').dataset.number, h.dataset.h); return; }
       if (e.target.closest('[data-close]')) { close(e.target.closest('.overlay').id); return; }
@@ -665,7 +701,7 @@
     $('#customer-form').addEventListener('submit', (e) => e.preventDefault());
     $('#btn-clear').addEventListener('click', async () => {
       if (!(await confirmSafe('Limpar todos os itens do pedido atual?', 'Limpar'))) return;
-      state.cart = {}; state.editingNumber = null; persistDraft(); renderReview(); renderList(); updateTotals();
+      state.cart = {}; state.pack = {}; state.editingNumber = null; persistDraft(); renderReview(); renderList(); updateTotals();
     });
     $('#btn-finish').addEventListener('click', finishOrder);
     $('#btn-done-download').addEventListener('click', () => state.lastOrder && downloadPdf(state.lastOrder));
@@ -721,5 +757,5 @@
   initRemote();
 
   // Expose for automated tests / debugging.
-  window.CDTApp = { state, INDEX, Remote, summarize: () => C.summarize(state.cart, INDEX) };
+  window.CDTApp = { state, INDEX, Remote, summarize: SUM };
 })();

@@ -244,3 +244,13 @@ table.orders tfoot td { font-weight: 700; border-top: 2px solid var(--line); bor
 .btn.small { padding: 6px 10px; font-size: .82rem; }
 table.orders td, table.orders th { white-space: nowrap; }
 table.orders td:nth-child(3) { white-space: normal; min-width: 120px; }
+
+/* Packaging toggle (fardo / fitinha) */
+.items-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin-top: 18px; }
+.items-head h3 { margin: 0 !important; }
+.pack-all { display: flex; align-items: center; gap: 6px; font-size: .85rem; color: var(--muted); }
+.rpack { grid-column: 1 / -1; display: flex; align-items: center; gap: 10px; font-size: .85rem; color: var(--muted); }
+.pack-toggle { display: inline-flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.pack-toggle .seg { border: none; background: #fff; padding: 10px 16px; min-height: 40px; font-weight: 600; cursor: pointer; color: var(--ink); }
+.pack-toggle .seg + .seg { border-left: 1px solid var(--line); }
+.pack-toggle .seg.on { background: var(--green); color: #fff; }
