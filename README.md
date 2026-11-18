@@ -5,6 +5,7 @@
 Sistema simples para tirar **pedidos de atacado do Clube do Tempero Lojista**, com base no catálogo *Impacto Terracota*.
 
 - **147 produtos** e **408 variações** (30 g / 50 g / 100 g / 250 g), com os preços exatos do catálogo.
+- **52 chás** (aba Chás): 39 novos tirados de clubedotempero.com/chas com preço do site − 25% × 10 pacotes, e 13 que já estavam no catálogo.
 - **12 kits** (Peixaria, Açougue, Casa de Carnes, Hortifruti, Mercearia, Minimercado, Conveniência e Posto, Autoatendimento, Casa de Temperos, Loja de Produtos Naturais, Padaria, Empório).
 - **12 tipos de expositor** (balcão, gôndola 60 cm / 1 m, ponta de gôndola, centro, chão, parede, clip strip) para incluir no pedido, sem valor.
 - Preços em **R$ por fardo com 10 unidades**. A quantidade do pedido é em fardos.
@@ -40,6 +41,8 @@ js/pdf.js               Geração do PDF (jsPDF + AutoTable)
 js/expositores.js       Tipos de expositor (sem preço)
 js/github-sync.js       Salvamento online opcional em repositório privado do GitHub
 js/analise.js           Análise rápida dos pedidos (cálculos + tela)
+js/chas.js              Chás do site (gerado por tools/build_chas.py)
+data/chas-site.json     Chás e preços lidos do site
 js/app.js               Controle da tela, salvamento e histórico
 data/catalog.json       Mesmo catálogo em JSON
 img/produtos/           Fotos dos produtos (extraídas do catálogo)
@@ -58,6 +61,16 @@ O script de geração confere **todos os 33 preços de kit** contra a soma dos p
 npm test                       # lógica do pedido + conferência do catálogo
 python3 tests/e2e_test.py      # clica na tela real, finaliza, lê o PDF e testa o salvamento
 ```
+
+## Atualizar os chás
+
+Os preços dos chás vêm do site (`data/chas-site.json`, preço por pacote em 18/11/2026). Regra: **fardo = preço do site × 0,75 × 10**. Para atualizar, troque os preços nesse arquivo e rode:
+
+```bash
+python3 tools/build_chas.py   # gera js/chas.js e mostra a comparação com o catálogo
+```
+
+As fotos dos chás novos são carregadas direto da loja (CDN da Nuvemshop); se não carregarem, aparece o logo.
 
 ## Atualizar o catálogo
 

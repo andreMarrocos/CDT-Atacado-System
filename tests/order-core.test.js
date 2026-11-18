@@ -181,3 +181,30 @@ test('fitinha packaging: same price, counted apart from fardos, cleaned with the
   // removed lines and unknown values are dropped
   assert.deepEqual(C.cleanPackaging({ [a]: 'fitinha', [kit]: 'caixa', 'product:x|1 g': 'fitinha' }, { [a]: 2 }, index), { [a]: 'fitinha' });
 });
+
+test('teas: 52 from the site, price = site - 25% x 10, existing ones match the catalog', () => {
+  require('../js/chas.js');
+  const chas = globalThis.CDT_CHAS;
+  const site = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'data', 'chas-site.json'), 'utf8'));
+  assert.equal(site.products.length, 52);
+  assert.equal(chas.existingIds.length + chas.products.length, 52);
+  const all = Object.fromEntries(catalog.products.concat(chas.products).map((p) => [p.name, p]));
+  site.products.forEach((t) => {
+    const p = all[t.name] || catalog.products.find((x) => x.name.toLowerCase() === t.name.toLowerCase());
+    assert.ok(p, 'missing tea ' + t.name);
+    Object.entries(t.retail).forEach(([size, retail]) => {
+      const v = p.variants.find((x) => x.size === size);
+      assert.ok(v, t.name + ' ' + size);
+      assert.equal(C.toCents(v.price), Math.round(retail * 0.75 * 10 * 100), t.name + ' ' + size);
+    });
+  });
+  // spot checks against the site prices read on 2026-11-18
+  const price = (n, s) => chas.products.find((p) => p.name === n).variants.find((v) => v.size === s).price;
+  assert.equal(price('Hibisco', '30 g'), 48.0);      // R$ 6,40 on the site
+  assert.equal(price('Chá Valeriana', '100 g'), 763.5); // R$ 101,80
+  assert.equal(price('Capim Limão', '50 g'), 60.0);  // R$ 8,00
+  chas.products.forEach((p) => { assert.equal(p.category, 'Chás'); assert.ok(/^https:\/\//.test(p.image)); });
+  // new ids do not clash with catalog ids, and the merged catalog builds a valid index
+  const merged = Object.assign({}, catalog, { products: catalog.products.concat(chas.products) });
+  assert.equal(Object.keys(C.buildIndex(merged)).length, 408 + chas.products.reduce((s, p) => s + p.variants.length, 0) + 33);
+});

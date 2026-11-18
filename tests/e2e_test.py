@@ -81,8 +81,17 @@ def local_mode(browser, url, errors):
     page = ctx.new_page()
     page.on('pageerror', lambda e: errors.append(str(e)))
     page.goto(url)
-    assert page.locator('.card').count() == 147
+    assert page.locator('.card').count() == 147 + 39             # PDF catalog + new teas from the site
     check_steppers_fit(page)
+    # Chás tab: all 52 teas (13 already in the catalog + 39 from the site)
+    page.click('#tab-teas')
+    assert page.locator('.card').count() == 52
+    assert page.locator('.card', has_text='Hibisco').count() == 1 and page.locator('.card', has_text='Camomila').count() == 1
+    check_steppers_fit(page)
+    page.click('#tab-products')
+    page.locator('.chip', has_text='Chás').click()
+    assert page.locator('.card').count() == 52
+    page.locator('.chip', has_text='Todos').click()
 
     plus(page, 'product:alecrim|30 g', 3)
     minus(page, 'product:alecrim|30 g', 1)                     # 2 x 33,75
@@ -93,6 +102,8 @@ def local_mode(browser, url, errors):
     plus(page, 'product:sal-de-parrilha|250 g')                # 1 x 111,00
     page.fill('#search', ''); page.wait_for_timeout(300)
 
+    page.click('#tab-teas')
+    plus(page, 'product:hibisco|50 g', 2)                       # 2 x 67,50 (site R$ 9,00 - 25% x 10)
     page.click('#tab-kits')
     assert page.locator('.card').count() == 12
     check_steppers_fit(page)
@@ -106,16 +117,16 @@ def local_mode(browser, url, errors):
     page.locator('.chip', has_text='Gôndola').click()
     assert page.locator('.card').count() == 4
 
-    expected = 2 * 3375 + 4 * 27450 + 11100 + 2 * 105600
+    expected = 2 * 3375 + 4 * 27450 + 11100 + 2 * 105600 + 2 * 6750
     assert cents(page.inner_text('#bar-total')) == expected, page.inner_text('#bar-total')
-    assert page.inner_text('#bar-fardos') == str(2 + 4 + 1 + 16)
+    assert page.inner_text('#bar-fardos') == str(2 + 4 + 1 + 16 + 2)
 
     page.click('#tab-selected')
-    assert page.locator('.card').count() == 6
+    assert page.locator('.card').count() == 7
     check_steppers_fit(page)
 
     page.click('#btn-review')
-    assert page.locator('.rline').count() == 6
+    assert page.locator('.rline').count() == 7
     page.locator('.rline', has_text='Sal de Parrilha').locator('.remove').click()
     expected -= 11100
     page.locator('#review-lines .stepper[data-key="product:alecrim|30 g"] button.plus').click()
@@ -142,7 +153,7 @@ def local_mode(browser, url, errors):
     path, text = finish_and_get_pdf(page)
     for needle in ['Mercado São João', '12.345.678/0001-90', '(41) 99999-0000', 'Rua XV de Novembro',
                    '(confirmado)', 'Boleto · 14/21/28 dias', 'Entregar pela manhã.', 'Alecrim', 'Chimichurri Defumado',
-                   'Kit Peixaria', 'Expositor de gôndola 1 m', 'Display de balcão pequeno', 'Expositores (sem valor):', brl(expected)]:
+                   'Kit Peixaria', 'Hibisco', 'Expositor de gôndola 1 m', 'Display de balcão pequeno', 'Expositores (sem valor):', brl(expected)]:
         assert needle in text, (needle, text)
     assert 'Sal de Parrilha' not in text
     # Clear quantity columns: "3 fardos" for products, "2 kits (16 fardos)" for kits, packages count
@@ -159,7 +170,8 @@ def local_mode(browser, url, errors):
     assert 'Separação para a fábrica' in ftext and 'R$' not in ftext
     assert re.search(r'Tempero para Peixe[\s\S]{0,200}?100 g\s+Fardo\s+2\s+20', ftext), ftext
     assert re.search(r'Alecrim\s+30 g\s+Fardo\s+3\s+30', ftext)
-    assert re.search(r'TOTAL\s+Fardos\s+23\s+230', ftext), ftext
+    assert re.search(r'TOTAL\s+Fardos\s+25\s+250', ftext), ftext
+    assert re.search(r'Hibisco\s+50 g\s+Fardo\s+2\s+20', ftext), ftext
     assert 'Expositor de gôndola 1 m' in ftext
     assert page.inner_text('#history-count') == '1'            # same order updated, not duplicated
     page.keyboard.press('Escape')

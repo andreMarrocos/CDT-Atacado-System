@@ -254,3 +254,4 @@ table.orders td:nth-child(3) { white-space: normal; min-width: 120px; }
 .pack-toggle .seg { border: none; background: #fff; padding: 10px 16px; min-height: 40px; font-weight: 600; cursor: pointer; color: var(--ink); }
 .pack-toggle .seg + .seg { border-left: 1px solid var(--line); }
 .pack-toggle .seg.on { background: var(--green); color: #fff; }
+.card img.img-fallback { object-fit: contain; padding: 18px 6px; opacity: .55; }

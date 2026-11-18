@@ -1,0 +1,579 @@
+{
+ "source": "https://www.clubedotempero.com/chas/",
+ "fetchedAt": "2026-11-18",
+ "discount": 0.25,
+ "unitsPerPack": 10,
+ "imageBase": "https://acdn-us.mitiendanube.com/stores/006/899/625/products/",
+ "products": [
+  {
+   "slug": "hortela",
+   "name": "Hortelã",
+   "image": "chatgpt-image-23-de-dez-de-2025-12_57_28-54b95c6eb6ae76b34a17670215911888-320-0.webp",
+   "description": "Hortelã seca com sabor e aroma mentolado estáveis, ideal para chás, doces e culinária.",
+   "retail": {
+    "30 g": 4.7,
+    "50 g": 6.6,
+    "100 g": 10.9
+   }
+  },
+  {
+   "slug": "gengibre-em-po",
+   "name": "Gengibre em Pó",
+   "image": "chatgpt-image-23-de-dez-de-2025-11_48_25-673ba29cb5b8b684e117670215427579-320-0.webp",
+   "description": "Gengibre em pó fresco e picante com aroma cítrico, ideal para chás, molhos e doces.",
+   "retail": {
+    "30 g": 8.4,
+    "50 g": 11.9,
+    "100 g": 19.5
+   }
+  },
+  {
+   "slug": "canela-casca",
+   "name": "Canela Casca",
+   "image": "canela_casca_clube_do_tempero-e5dfe1fecc18bbe19417765420316022-320-0.webp",
+   "description": "Canela casca com aroma intenso e secagem controlada.",
+   "retail": {
+    "30 g": 7.9,
+    "50 g": 11.6
+   }
+  },
+  {
+   "slug": "anis-estrelado",
+   "name": "Anis Estrelado",
+   "image": "anis_estrelado-5e93e855e82e50683a17765386473388-320-0.webp",
+   "description": "Anis Estrelado inteiro, aroma doce e picante, ideal para chás, doces e pratos orientais.",
+   "retail": {
+    "30 g": 6.8,
+    "50 g": 9.8
+   }
+  },
+  {
+   "slug": "gengibre-em-lascas",
+   "name": "Gengibre em lascas",
+   "image": "gemgibre_em_lascas-a2e8ad14fdc8e8278c17765431387893-320-0.webp",
+   "description": "Gengibre em lascas prático, fresco e picante.",
+   "retail": {
+    "30 g": 6.4,
+    "50 g": 9.1,
+    "100 g": 15
+   }
+  },
+  {
+   "slug": "erva-doce",
+   "name": "Erva Doce",
+   "image": "chatgpt-image-29-de-dez-de-2025-10_53_17-2b04a2fa84417f2a3d17670259377318-320-0.webp",
+   "description": "Erva Doce com sabor anisado, perfeita para chás, pães e sobremesas.",
+   "retail": {
+    "30 g": 5.2,
+    "50 g": 7,
+    "100 g": 11.6
+   }
+  },
+  {
+   "slug": "cravo-flor",
+   "name": "Cravo Flor",
+   "image": "gemini_generated_image_kt8yj7kt8yj7kt8y-7cfc33abacd084d9a017767795883077-320-0.webp",
+   "description": "Cravo Flor inteiro com aroma doce e especiado, ideal para doces, marinadas e infusões.",
+   "retail": {
+    "30 g": 15.5,
+    "50 g": 21.9,
+    "100 g": 36.1
+   }
+  },
+  {
+   "slug": "alfavaca",
+   "name": "Alfavaca",
+   "image": "alfavaca_clube_do_tempero-e5860c89bb0d86744f17765412864542-320-0.webp",
+   "description": "Alfavaca com aroma firme e nuances de cravo, ideal para molhos, aves e legumes.",
+   "retail": {
+    "30 g": 4.5,
+    "50 g": 6,
+    "100 g": 9.7
+   }
+  },
+  {
+   "slug": "camomila",
+   "name": "Camomila",
+   "image": "gemini_generated_image_jtar7jtar7jtar7j-2d8b5e72b531e2dcd917767762253264-320-0.webp",
+   "description": "Flores de camomila selecionadas com aroma suave e efeito calmante.",
+   "retail": {
+    "30 g": 6.4,
+    "50 g": 9.2,
+    "100 g": 15.7
+   }
+  },
+  {
+   "slug": "cravo-em-po",
+   "name": "Cravo em Pó",
+   "image": "gemini_generated_image_gtaj2dgtaj2dgtaj-4d6ab55637897f1bcd17767776177157-320-0.webp",
+   "description": "Cravo em pó com sabor adocicado e moagem fina.",
+   "retail": {
+    "30 g": 11.1,
+    "50 g": 16.9,
+    "100 g": 31.4
+   }
+  },
+  {
+   "slug": "cha-para-gripe",
+   "name": "Chá para Gripe",
+   "image": "gemini_generated_image_5sfsyt5sfsyt5sfs-40a4427d4eb00fecc617767772186320-320-0.webp",
+   "description": "Chá para Gripe com sabor cítrico e toque de especiarias, perfeito para aquecer em dias frios.",
+   "retail": {
+    "30 g": 6.3,
+    "50 g": 8.8,
+    "100 g": 15.2
+   }
+  },
+  {
+   "slug": "capim-limao",
+   "name": "Capim Limão",
+   "image": "gemini_generated_image_ag9wyiag9wyiag9w-86433f7e31beb1a54917767763354130-320-0.webp",
+   "description": "Capim Limão cítrico e aromático ideal para chás, drinks e marinadas.",
+   "retail": {
+    "30 g": 5.8,
+    "50 g": 8,
+    "100 g": 13.6
+   }
+  },
+  {
+   "slug": "hibisco",
+   "name": "Hibisco",
+   "image": "hibisco_clube_do_tempero-10113aec798dc33bb417765435130229-320-0.webp",
+   "description": "Hibisco com cálices secos selecionados para infusão quente ou gelada, sabor ácido-frutado e cor rubi intensa.",
+   "retail": {
+    "30 g": 6.4,
+    "50 g": 9,
+    "100 g": 15.6
+   }
+  },
+  {
+   "slug": "erva-doce-em-po",
+   "name": "Erva Doce em Pó",
+   "image": "job-01-c14138224222eb88de17944527259106-320-0.webp",
+   "description": "Erva Doce em Pó com aroma doce e sabor intenso.",
+   "retail": {
+    "30 g": 5.1,
+    "50 g": 6.8,
+    "100 g": 11.2
+   }
+  },
+  {
+   "slug": "dente-de-leao",
+   "name": "Dente de Leão",
+   "image": "gemini_generated_image_kpvs7skpvs7skpvs-3ff54c61ff8468d54117767796459386-320-0.webp",
+   "description": "Infusão de Dente de Leão, sabor leve e fácil de combinar.",
+   "retail": {
+    "30 g": 7.3,
+    "50 g": 10.5,
+    "100 g": 18.6
+   }
+  },
+  {
+   "slug": "funcho",
+   "name": "Funcho",
+   "image": "job-02-8b21b5a4d108954ac717944527368656-320-0.webp",
+   "description": "Funcho com sabor doce-anisado, ideal para chás, pães e sobremesas.",
+   "retail": {
+    "30 g": 8,
+    "50 g": 11,
+    "100 g": 17.5
+   }
+  },
+  {
+   "slug": "eucalipto-folha",
+   "name": "Eucalipto folha",
+   "image": "job-03-1dd4c91afb161e029817944527745127-320-0.webp",
+   "description": "Eucalipto folha para infusão aromática, puro ou em blends.",
+   "retail": {
+    "30 g": 5.2,
+    "50 g": 7.4,
+    "100 g": 12.1
+   }
+  },
+  {
+   "slug": "espinheira-santa",
+   "name": "Espinheira Santa",
+   "image": "gemini_generated_image_kdbvpfkdbvpfkdbv-40f84ee61d9045a4f917767798864676-320-0.webp",
+   "description": "Espinheira Santa com folhas selecionadas para infusão quente ou gelada.",
+   "retail": {
+    "30 g": 4.6,
+    "50 g": 6.2,
+    "100 g": 9.6
+   }
+  },
+  {
+   "slug": "erva-cidreira",
+   "name": "Erva Cidreira",
+   "image": "job-04-7062bffd962905ddca17944528208676-320-0.webp",
+   "description": "Erva Cidreira com aroma cítrico e herbal suave, ideal para chás quentes ou gelados.",
+   "retail": {
+    "30 g": 16.1,
+    "50 g": 25.2,
+    "100 g": 11.7
+   }
+  },
+  {
+   "slug": "mulungu",
+   "name": "Mulungu",
+   "image": "gemini_generated_image_pbz9m1pbz9m1pbz9-9f1f2ed6a6a43b9fce17767818795983-320-0.webp",
+   "description": "Mulungu em casca para decocção, sabor amadeirado e herbal.",
+   "retail": {
+    "30 g": 5.7,
+    "50 g": 7.8,
+    "100 g": 13.2
+   }
+  },
+  {
+   "slug": "sene-em-folhas",
+   "name": "Sene em Folhas",
+   "image": "chatgpt-image-21-de-abr-de-2026-11_39_25-d885953ec93914021317767863604254-320-0.webp",
+   "description": "Folhas secas selecionadas para infusão (consumo ocasional).",
+   "retail": {
+    "30 g": 5.1,
+    "50 g": 6.3,
+    "100 g": 10.3
+   }
+  },
+  {
+   "slug": "cavalinha",
+   "name": "Cavalinha",
+   "image": "gemini_generated_image_mwca3dmwca3dmwca-6c44db36a2e8d9ec0817767771428418-320-0.webp",
+   "description": "Cavalinha, erva para infusões quentes ou geladas, com sabor leve e refrescante.",
+   "retail": {
+    "30 g": 11.9,
+    "50 g": 18.2,
+    "100 g": 33.9
+   }
+  },
+  {
+   "slug": "pata-de-vaca",
+   "name": "Pata de vaca",
+   "image": "gemini_generated_image_phyqobphyqobphyq-2b6556aac9ca7a553117767820028623-320-0.webp",
+   "description": "Pata de Vaca para infusão com perfil herbal, sem cafeína.",
+   "retail": {
+    "30 g": 6.8,
+    "50 g": 9.7,
+    "100 g": 16.9
+   }
+  },
+  {
+   "slug": "jurubeba-em-po",
+   "name": "Jurubeba em pó",
+   "image": "job-05-8399a255a67c0a3b8517944529058113-320-0.webp",
+   "description": "Jurubeba em pó com moagem fina, ideal para infusões e bitters caseiros.",
+   "retail": {
+    "30 g": 4.5,
+    "50 g": 6,
+    "100 g": 9.7
+   }
+  },
+  {
+   "slug": "cha-verde",
+   "name": "Chá Verde",
+   "image": "gemini_generated_image_b4xjq0b4xjq0b4xj-88c1371e9e9c32f22517767771848352-320-0.webp",
+   "description": "Chá Verde leve e aromático, fácil de preparar com água quente sem ferver.",
+   "retail": {
+    "30 g": 4.7,
+    "50 g": 6.2,
+    "100 g": 9.9
+   }
+  },
+  {
+   "slug": "emburana-em-casca",
+   "name": "Emburana em casca",
+   "image": "job-06-f60b4bf1bef674c67917944529160945-320-0.webp",
+   "description": "Casca de emburana com aroma marcante de canela e baunilha, ideal para decocções, licores e xaropes.",
+   "retail": {
+    "30 g": 7,
+    "50 g": 9.4,
+    "100 g": 16.1
+   }
+  },
+  {
+   "slug": "boldo-do-chile",
+   "name": "Boldo do Chile",
+   "image": "gemini_generated_image_3ivt733ivt733ivt-8df81583fe49adadf617767754473396-320-0.webp",
+   "description": "Boldo do Chile para chás com aroma herbal marcante.",
+   "retail": {
+    "30 g": 9.2,
+    "50 g": 12.6,
+    "100 g": 20.2
+   }
+  },
+  {
+   "slug": "cha-valeriana",
+   "name": "Chá Valeriana",
+   "image": "job-09-9b40344f71303287ac17944529979007-320-0.webp",
+   "description": "Chá Valeriana com sabor terroso-floral, ideal para noites tranquilas.",
+   "retail": {
+    "30 g": 32.3,
+    "50 g": 52.1,
+    "100 g": 101.8
+   }
+  },
+  {
+   "slug": "carqueja-amarga",
+   "name": "Carqueja Amarga",
+   "image": "gemini_generated_image_m8wyz0m8wyz0m8wy-f2dce2fec4da7e587817767763699828-320-0.webp",
+   "description": "Carqueja Amarga, erva tradicional com amargor marcante.",
+   "retail": {
+    "30 g": 4.5,
+    "50 g": 6,
+    "100 g": 9.7
+   }
+  },
+  {
+   "slug": "guaco",
+   "name": "Guaco",
+   "image": "guaco-3b7e9a57eb66f040c517765433152366-320-0.webp",
+   "description": "Guaco para infusão com folhas selecionadas, ideal quente ou gelado, sabor herbal levemente amargo.",
+   "retail": {
+    "30 g": 12.1,
+    "50 g": 18.6,
+    "100 g": 34.7
+   }
+  },
+  {
+   "slug": "ginkgo-biloba",
+   "name": "Ginkgo Biloba",
+   "image": "job-10-c6047cd55547314b7217944530097894-320-0.webp",
+   "description": "Folhas selecionadas de Ginkgo Biloba para infusão com sabor leve, herbal e terroso.",
+   "retail": {
+    "30 g": 12.2,
+    "50 g": 17.3,
+    "100 g": 28.5
+   }
+  },
+  {
+   "slug": "catuaba-em-po",
+   "name": "Catuaba em pó",
+   "image": "job-11-b5aafd323931fc0be017944530292106-320-0.webp",
+   "description": "Catuaba em pó fácil de misturar para infusões rápidas, blends e bebidas geladas.",
+   "retail": {
+    "30 g": 4.5,
+    "50 g": 6,
+    "100 g": 9.7
+   }
+  },
+  {
+   "slug": "sucupira-semente",
+   "name": "Sucupira semente",
+   "image": "job-14-959b54109b822c618717944530762393-320-0.webp",
+   "description": "Sucupira semente selecionada para decocção e infusões com sabor amadeirado.",
+   "retail": {
+    "30 g": 4.5,
+    "50 g": 6,
+    "100 g": 9.7
+   }
+  },
+  {
+   "slug": "picao-preto",
+   "name": "Picão Preto",
+   "image": "job-15-c4577e4f5e665bfdb517944530927167-320-0.webp",
+   "description": "Picão Preto, infusão herbal com sabor marcante e notas verdes.",
+   "retail": {
+    "30 g": 7.1,
+    "50 g": 9.7,
+    "100 g": 15.5
+   }
+  },
+  {
+   "slug": "macela",
+   "name": "Macela",
+   "image": "job-17-55e5fd4e14b4c8168417944531532633-320-0.webp",
+   "description": "Macela, infusão floral melada com aroma suave, perfeita quente ou gelada.",
+   "retail": {
+    "30 g": 14.8,
+    "50 g": 20.6,
+    "100 g": 33.4
+   }
+  },
+  {
+   "slug": "cardamomo-em-po",
+   "name": "Cardamomo em Pó",
+   "image": "job-23-f60a5287792eb6e51617944532602019-320-0.webp",
+   "description": "Cardamomo em pó fino com aroma marcante e sabor exótico.",
+   "retail": {
+    "30 g": 54.8,
+    "50 g": 77.6,
+    "100 g": 127.8
+   }
+  },
+  {
+   "slug": "canela-de-velho",
+   "name": "Canela de Velho",
+   "image": "job-18-ba2ad73ebedf2dc8c817944531642969-320-0.webp",
+   "description": "Canela de Velho, infusão herbal-terrosa com amargor suave, perfeita quente ou gelada.",
+   "retail": {
+    "30 g": 4.5,
+    "50 g": 6,
+    "100 g": 9.7
+   }
+  },
+  {
+   "slug": "barbatimao-em-po",
+   "name": "Barbatimão em pó",
+   "image": "job-19-26ba61043c55ca2d1517944531767692-320-0.webp",
+   "description": "Barbatimão em pó com perfil amadeirado e adstringente, ideal para bebidas quentes e geladas.",
+   "retail": {
+    "30 g": 6.4,
+    "50 g": 9,
+    "100 g": 15.6
+   }
+  },
+  {
+   "slug": "uxi-amarelo",
+   "name": "Uxi Amarelo",
+   "image": "gemini_generated_image_edswhdedswhdedsw-8afdd43ee760c32fbe17767876893000-320-0.webp",
+   "description": "Uxi Amarelo, casca amazônica ideal para decocção, com aroma amadeirado.",
+   "retail": {
+    "30 g": 4.5,
+    "50 g": 6,
+    "100 g": 9.7
+   }
+  },
+  {
+   "slug": "unha-de-gato",
+   "name": "Unha de Gato",
+   "image": "job-20-abb9878381a7e0089717944532213330-320-0.webp",
+   "description": "Unha de Gato para decocções aromáticas com toque amadeirado e herbal.",
+   "retail": {
+    "30 g": 6.1,
+    "50 g": 8.5,
+    "100 g": 14.5
+   }
+  },
+  {
+   "slug": "sucupira-em-casca",
+   "name": "Sucupira em casca",
+   "image": "sucupira-em-casca-branco-fc00f0f1e32f17a17717944540858956-320-0.webp",
+   "description": "Sucupira em casca para decocção aromática com notas amadeiradas.",
+   "retail": {
+    "30 g": 5,
+    "50 g": 6.7,
+    "100 g": 10.4
+   }
+  },
+  {
+   "slug": "sete-sangrias",
+   "name": "Sete Sangrias",
+   "image": "gemini_generated_image_hid9k9hid9k9hid9-d786bd31e5570281da17765457952645-320-0.webp",
+   "description": "Sete Sangrias, folhas secas para infusão com sabor leve e aroma preservado.",
+   "retail": {
+    "30 g": 4.5,
+    "50 g": 6,
+    "100 g": 9.7
+   }
+  },
+  {
+   "slug": "ipe-roxo",
+   "name": "Ipê Roxo",
+   "image": "job-21-9fae720fd34c6e850117944532308202-320-0.webp",
+   "description": "Ipê Roxo com perfil amadeirado e herbal.",
+   "retail": {
+    "30 g": 4.5,
+    "50 g": 6,
+    "100 g": 9.7
+   }
+  },
+  {
+   "slug": "ginseng-raiz",
+   "name": "Ginseng Raiz",
+   "image": "chatgpt-image-29-de-dez-de-2025-11_42_12-472b952a0870cb7b4617670259774696-320-0.webp",
+   "description": "Ginseng Raiz selecionada para infusões aromáticas com sabor amadeirado-terroso.",
+   "retail": {
+    "30 g": 6.7,
+    "50 g": 9.5,
+    "100 g": 16.5
+   }
+  },
+  {
+   "slug": "folha-da-oliveira",
+   "name": "Folha da Oliveira",
+   "image": "folhas_de_oliveira-488708127c162af75a17765429546436-320-0.webp",
+   "description": "Folha da Oliveira para infusão herbal, sabor levemente amargo, ótimo quente ou gelado.",
+   "retail": {
+    "30 g": 5.5,
+    "50 g": 7.6,
+    "100 g": 12.7
+   }
+  },
+  {
+   "slug": "erva-de-bicho",
+   "name": "Erva de Bicho",
+   "image": "job-22-e5457d9db3d0dad8cb17944532431769-320-0.webp",
+   "description": "Erva de Bicho com corte padronizado para infusões e decocções, sabor herbal intenso.",
+   "retail": {
+    "30 g": 4.5,
+    "50 g": 6,
+    "100 g": 9.7
+   }
+  },
+  {
+   "slug": "chapeu-de-couro",
+   "name": "Chapéu de Couro",
+   "image": "job-24-947836d579721b5aaa17944532782825-320-0.webp",
+   "description": "Chapéu de Couro, erva tradicional brasileira para infusão com sabor herbal intenso.",
+   "retail": {
+    "30 g": 10.7,
+    "50 g": 14.8,
+    "100 g": 23.9
+   }
+  },
+  {
+   "slug": "catuaba-em-casca",
+   "name": "Catuaba em casca",
+   "image": "job-25-36467b4df17c6d66b017944533012368-320-0.webp",
+   "description": "Catuaba em casca para decocções e infusões com sabor amadeirado suave.",
+   "retail": {
+    "30 g": 5,
+    "50 g": 6.8,
+    "100 g": 10.5
+   }
+  },
+  {
+   "slug": "quina-quina-em-casca",
+   "name": "Quina Quina em casca",
+   "image": "job-28-2e7ed1af4cd232f3cd17944533492412-320-0.webp",
+   "description": "Quina Quina em casca oferece amargor herbal único, ideal para bitters caseiros e caldas.",
+   "retail": {
+    "30 g": 4.5,
+    "50 g": 6,
+    "100 g": 9.7
+   }
+  },
+  {
+   "slug": "no-de-cachorro",
+   "name": "Nó de Cachorro",
+   "image": "job-29-1aa802a7ddd51ab2d117944533738003-320-0.webp",
+   "description": "Nó de Cachorro oferece amargor aromático para caldas e bitters.",
+   "retail": {
+    "30 g": 6.2,
+    "50 g": 8.8,
+    "100 g": 14.5
+   }
+  },
+  {
+   "slug": "jurubeba-em-folha",
+   "name": "Jurubeba em folha",
+   "image": "job-30-295fc89b76fc7f1c1617944533899526-320-0.webp",
+   "description": "Jurubeba em folha para infusões e blends aromáticos.",
+   "retail": {
+    "30 g": 5.8,
+    "50 g": 7.9,
+    "100 g": 12.4
+   }
+  },
+  {
+   "slug": "jatoba-em-casca",
+   "name": "Jatobá em casca",
+   "image": "job-31-55e2ed2ebe3a82355717944534069409-320-0.webp",
+   "description": "Jatobá em casca selecionada para decocção, com sabor amadeirado e dulçor natural.",
+   "retail": {
+    "30 g": 6.5,
+    "50 g": 8.8,
+    "100 g": 13.9
+   }
+  }
+ ]
+}

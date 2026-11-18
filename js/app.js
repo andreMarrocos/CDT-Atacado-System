@@ -10,6 +10,18 @@
   const A = window.OrderAnalysis;
   const CATALOG = window.CDT_CATALOG;
   CATALOG.displays = window.CDT_EXPOSITORES || [];
+  // Teas from clubedotempero.com (site price - 25%): new products + tag the ones already in the PDF catalog.
+  (function mergeTeas(chas) {
+    if (!chas || CATALOG.__teasMerged) return;
+    const have = new Set(CATALOG.products.map((p) => p.id));
+    CATALOG.products.forEach((p) => {
+      if (chas.existingIds.indexOf(p.id) !== -1) p.alsoIn = ['Chás'];
+    });
+    chas.products.forEach((p) => { if (!have.has(p.id)) CATALOG.products.push(p); });
+    CATALOG.__teasMerged = true;
+  })(window.CDT_CHAS);
+  const inCategory = (p, cat) => cat === 'Todos' || p.category === cat || (p.alsoIn || []).indexOf(cat) !== -1;
+  const TEAS = CATALOG.products.filter((p) => inCategory(p, 'Chás'));
   const ICONS = window.CDT_EXPOSITOR_ICONS || {};
   const INDEX = C.buildIndex(CATALOG);
   const DRAFT_KEY = 'cdt-atacado.draft.v1';
@@ -248,7 +260,8 @@
     else if (state.tab === 'display') { list = DISPLAY_GROUPS; items = CATALOG.displays; field = 'group'; }
     if (!list) { chips.innerHTML = ''; return; }
     chips.innerHTML = list.map((c) => {
-      const n = c === 'Todos' ? items.length : items.filter((p) => p[field] === c).length;
+      const n = field === 'category' ? items.filter((p) => inCategory(p, c)).length
+        : (c === 'Todos' ? items.length : items.filter((p) => p[field] === c).length);
       return '<button type="button" class="chip' + (c === state.category ? ' active' : '') + '" data-cat="' + esc(c) + '">' + esc(c) + ' <span class="muted">' + n + '</span></button>';
     }).join('');
   }
@@ -273,7 +286,8 @@
 
   function productCard(p) {
     return '<article class="card" data-item="product:' + p.id + '">' +
-      '<div class="card-head"><img loading="lazy" src="' + esc(p.image) + '" alt="' + esc(p.name) + '">' +
+      '<div class="card-head"><img loading="lazy" src="' + esc(p.image) + '" alt="' + esc(p.name) + '"' +
+        (p.imageRemote ? ' referrerpolicy="no-referrer" data-fallback="img/logo.png"' : '') + '>' +
       '<div><span class="code">#' + p.code + ' · ' + esc(p.category) + '</span>' +
       '<h3>' + esc(p.name) + '</h3><p class="use">' + esc(p.use) + '</p></div></div>' +
       variantsHtml('product', p) + '<div class="card-sub"></div></article>';
@@ -312,10 +326,12 @@
     let count = 0;
     if (state.tab === 'product') {
       CATALOG.products.forEach((p) => {
-        if (state.category !== 'Todos' && p.category !== state.category) return;
+        if (!inCategory(p, state.category)) return;
         if (!matches(p)) return;
         html += productCard(p); count++;
       });
+    } else if (state.tab === 'cha') {
+      TEAS.forEach((p) => { if (matches(p)) { html += productCard(p); count++; } });
     } else if (state.tab === 'kit') {
       CATALOG.kits.forEach((k) => {
         if (!matches(k, k.items.map((id) => prodById[id].name).join(' '))) return;
@@ -413,8 +429,8 @@
   // ---------- Review drawer ----------
   function imageHtml(line) {
     if (line.type === 'display') return ICONS[dispById[line.id].icon] || '';
-    const src = line.type === 'kit' ? kitById[line.id].image : prodById[line.id].image;
-    return '<img src="' + esc(src) + '" alt="">';
+    const item = line.type === 'kit' ? kitById[line.id] : prodById[line.id];
+    return '<img src="' + esc(item.image) + '" alt=""' + (item.imageRemote ? ' referrerpolicy="no-referrer" data-fallback="img/logo.png"' : '') + '>';
   }
 
   function lineMeta(l) {
@@ -747,6 +763,14 @@
   // ---------- Init ----------
   $('#count-products').textContent = CATALOG.products.length;
   $('#count-kits').textContent = CATALOG.kits.length;
+  $('#count-teas').textContent = TEAS.length;
+  // Images hosted on the store's CDN may be blocked (e.g. inside claude.ai): show the logo instead.
+  document.addEventListener('error', (e) => {
+    const img = e.target;
+    if (img && img.tagName === 'IMG' && img.dataset.fallback && img.src.indexOf(img.dataset.fallback) === -1) {
+      img.src = img.dataset.fallback; img.classList.add('img-fallback');
+    }
+  }, true);
   $('#count-displays').textContent = CATALOG.displays.length;
   fillSelects();
   bind();
