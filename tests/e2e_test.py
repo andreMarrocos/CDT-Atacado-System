@@ -403,6 +403,61 @@ def fitinha_mode(browser, url, errors):
     print('Fitinha OK')
 
 
+def freight_mode(browser, url, errors):
+    """Optional freight typed before finishing: empty = frete grátis, value adds to the total."""
+    ctx = browser.new_context(accept_downloads=True, viewport={'width': 360, 'height': 780})
+    page = ctx.new_page()
+    page.on('pageerror', lambda e: errors.append(str(e)))
+    page.goto(url)
+    plus(page, 'product:alecrim|30 g', 2)                        # 67,50
+    products = 2 * 3375
+    page.click('#btn-review')
+    assert 'Grátis' in page.inner_text('#review-totals')
+    assert cents(page.inner_text('#review-totals .grand')) == products
+    # typed with comma, updates while typing
+    page.fill('#freight', '45,90')
+    assert cents(page.inner_text('#review-totals .grand')) == products + 4590
+    assert cents(page.inner_text('#bar-total')) == products + 4590
+    page.locator('#freight').press('Enter')
+    assert page.input_value('#freight') == '45,90'
+    # survives reload (draft)
+    page.keyboard.press('Escape'); page.reload(); page.click('#btn-review')
+    assert page.input_value('#freight') == '45,90'
+    # changing items keeps freight and re-sums
+    page.locator('#review-lines .stepper[data-key="product:alecrim|30 g"] button.plus').click()
+    products += 3375
+    assert cents(page.inner_text('#review-totals .grand')) == products + 4590
+    path, text = finish_and_get_pdf(page)
+    assert re.search(r'Subtotal dos produtos:\s+' + re.escape(brl(products)), text), text
+    assert re.search(r'Frete:\s+R\$ 45,90', text), text
+    assert re.search(r'TOTAL:\s+' + re.escape(brl(products + 4590)), text), text
+    assert 'com frete de R$ 45,90' in page.inner_text('#done-body')
+    page.keyboard.press('Escape')
+    # history and analysis show the value with freight
+    page.click('#btn-history')
+    assert cents(page.locator('.hline .htop span').nth(1).inner_text()) == products + 4590
+    page.keyboard.press('Escape')
+    page.click('#btn-analysis')
+    assert cents(page.locator('.kpi').nth(1).locator('strong').inner_text()) == products + 4590
+    assert 'Frete cobrado' in page.inner_text('.kpis') and '45,90' in page.inner_text('.kpis')
+    page.keyboard.press('Escape')
+    # clear freight -> frete grátis, same order updated
+    page.click('#btn-review')
+    page.click('#freight-clear')
+    assert page.input_value('#freight') == ''
+    assert 'Grátis' in page.inner_text('#review-totals')
+    path, text = finish_and_get_pdf(page)
+    assert re.search(r'Frete:\s+Grátis', text) and re.search(r'TOTAL:\s+' + re.escape(brl(products)), text), text
+    assert 'frete grátis' in page.inner_text('#done-body')
+    assert page.inner_text('#history-count') == '1'
+    # new order starts with no freight
+    page.keyboard.press('Escape'); page.evaluate("document.getElementById('btn-new-order').click()")
+    plus(page, 'product:alecrim|30 g'); page.click('#btn-review')
+    assert page.input_value('#freight') == '' and 'Grátis' in page.inner_text('#review-totals')
+    ctx.close()
+    print('Freight OK')
+
+
 def main():
     srv = serve()
     url = f'http://127.0.0.1:{srv.server_port}/index.html'
@@ -413,6 +468,7 @@ def main():
         claude_mode(browser, url, errors)
         github_mode(browser, url, errors)
         fitinha_mode(browser, url, errors)
+        freight_mode(browser, url, errors)
         browser.close()
     srv.shutdown()
     assert not errors, errors

@@ -208,3 +208,22 @@ test('teas: 52 from the site, price = site - 25% x 10, existing ones match the c
   const merged = Object.assign({}, catalog, { products: catalog.products.concat(chas.products) });
   assert.equal(Object.keys(C.buildIndex(merged)).length, 408 + chas.products.reduce((s, p) => s + p.variants.length, 0) + 33);
 });
+
+test('parseBRL: typed freight values', () => {
+  const cases = { '': 0, '0': 0, '0,00': 0, '45': 4500, '45,9': 4590, '45,90': 4590, 'R$ 45,90': 4590, '45.90': 4590,
+    '1.234,56': 123456, '1234,56': 123456, '1.234': 123400, '1,234.56': 123456, 'abc': 0, '-30': 3000, ' 120 ': 12000 };
+  Object.entries(cases).forEach(([txt, cents]) => assert.equal(C.parseBRL(txt), cents, JSON.stringify(txt)));
+});
+
+test('analysis: freight counted in order value and in its own total', () => {
+  const A = require('../js/analise.js');
+  const k = C.lineKey('product', 'alecrim', '30 g');
+  const orders = [
+    { number: 'A', createdAt: '2026-11-19T12:00:00Z', cart: { [k]: 2 }, productsCents: 6750, freightCents: 4590, totalCents: 6750 + 4590, customer: {} },
+    { number: 'B', createdAt: '2026-11-19T13:00:00Z', cart: { [k]: 1 }, totalCents: 3375, customer: {} }, // old order, no freight
+  ];
+  const r = A.compute(orders, index, {});
+  assert.equal(r.revenueCents, 6750 + 4590 + 3375);
+  assert.equal(r.freightCents, 4590);
+  assert.ok(A.toCsv(r).includes('"45,90"'));
+});

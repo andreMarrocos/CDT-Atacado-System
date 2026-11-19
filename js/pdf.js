@@ -130,7 +130,8 @@
     const x = pageW - margin - boxW;
     doc.setDrawColor.apply(doc, GREEN);
     doc.setLineWidth(0.4);
-    const boxH = 30 + (displayLines.length ? 5 : 0) + (sum.totalFitinhas ? 5 : 0);
+    const freight = order.freightCents || 0;
+    const boxH = 46 + (displayLines.length ? 5 : 0) + (sum.totalFitinhas ? 5 : 0);
     doc.roundedRect(x, y, boxW, boxH, 2, 2);
     doc.setFontSize(9);
     doc.setTextColor(40);
@@ -142,11 +143,14 @@
     if (sum.totalFitinhas) row('Total de fitinhas:', sum.totalFitinhas);
     row('Total de pacotes (10 por fardo/fitinha):', sum.totalUnits);
     if (displayLines.length) row('Expositores (sem valor):', sum.totalDisplays);
+    ty += 1;
+    row('Subtotal dos produtos:', C.formatBRL(sum.totalCents));
+    row('Frete:', freight ? C.formatBRL(freight) : 'Grátis');
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(12);
     doc.setTextColor.apply(doc, RED);
     doc.text('TOTAL:', x + 4, ty + 4);
-    doc.text(C.formatBRL(sum.totalCents), x + boxW - 4, ty + 4, { align: 'right' });
+    doc.text(C.formatBRL(sum.totalCents + freight), x + boxW - 4, ty + 4, { align: 'right' });
 
     // Notes
     if (order.customer && order.customer.notes) {

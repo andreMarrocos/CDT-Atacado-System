@@ -44,13 +44,13 @@
       return true;
     }).sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
 
-    let revenue = 0, fardos = 0, displays = 0;
+    let revenue = 0, fardos = 0, displays = 0, freight = 0;
     const byMonth = {}, byDay = {}, byCustomer = {}, byPayment = {}, byItem = {};
     const rows = list.map((o) => {
       const s = C.summarize(o.cart || {}, index, o.packaging);
       const cents = orderCents(o, index);
       const c = o.customer || {};
-      revenue += cents; fardos += s.totalFardos; displays += s.totalDisplays;
+      revenue += cents; fardos += s.totalFardos; displays += s.totalDisplays; freight += o.freightCents || 0;
       const t = new Date(o.createdAt);
       const mk = t.getFullYear() + '-' + String(t.getMonth() + 1).padStart(2, '0');
       const dk = mk + '-' + String(t.getDate()).padStart(2, '0');
@@ -67,7 +67,7 @@
         (byItem[ik] = byItem[ik] || { name: l.name, type: l.type, cents: 0, fardos: 0 });
         byItem[ik].cents += l.subtotalCents; byItem[ik].fardos += l.fardos;
       });
-      return { number: o.number, createdAt: o.createdAt, customer: ck, payment: pk, fardos: s.totalFardos, displays: s.totalDisplays, cents: cents };
+      return { number: o.number, createdAt: o.createdAt, customer: ck, payment: pk, fardos: s.totalFardos, displays: s.totalDisplays, freight: o.freightCents || 0, cents: cents };
     });
 
     const desc = (a, b) => b.cents - a.cents || a.name.localeCompare(b.name, 'pt-BR');
@@ -81,6 +81,7 @@
     return {
       count: list.length,
       revenueCents: revenue,
+      freightCents: freight,
       avgCents: list.length ? Math.round(revenue / list.length) : 0,
       fardos: fardos,
       displays: displays,
@@ -95,9 +96,9 @@
 
   function toCsv(result) {
     const esc = (v) => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
-    const head = ['Pedido', 'Data', 'Cliente', 'Pagamento', 'Fardos', 'Expositores', 'Valor (R$)'];
+    const head = ['Pedido', 'Data', 'Cliente', 'Pagamento', 'Fardos', 'Expositores', 'Frete (R$)', 'Valor total (R$)'];
     const lines = result.rows.map((r) => [r.number, new Date(r.createdAt).toLocaleString('pt-BR'), r.customer, r.payment,
-      r.fardos, r.displays, (r.cents / 100).toFixed(2).replace('.', ',')].map(esc).join(';'));
+      r.fardos, r.displays, (r.freight / 100).toFixed(2).replace('.', ','), (r.cents / 100).toFixed(2).replace('.', ',')].map(esc).join(';'));
     return '﻿' + [head.map(esc).join(';')].concat(lines).join('\r\n');
   }
 
@@ -157,6 +158,7 @@
         kpi('Faturamento', C.formatBRL(r.revenueCents)) +
         kpi('Ticket médio', C.formatBRL(r.avgCents)) +
         kpi('Fardos', r.fardos.toLocaleString('pt-BR')) +
+        kpi('Frete cobrado', C.formatBRL(r.freightCents)) +
         kpi('Expositores', r.displays) +
       '</div>' +
       '<section class="an-card"><h3>Faturamento por ' + r.seriesUnit + '</h3>' + barChart(r.series, chartWidth) + '</section>' +

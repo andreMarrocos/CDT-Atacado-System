@@ -170,6 +170,19 @@
     return prefix + String(max + 1).padStart(3, '0');
   }
 
+  // Parse money typed by a person ("45,90", "R$ 1.234,56", "45.9", "45") into cents.
+  // Empty or invalid -> 0 (free shipping). Never negative.
+  function parseBRL(text) {
+    let t = String(text == null ? '' : text).replace(/[^0-9.,]/g, '');
+    if (!t) return 0;
+    const lastComma = t.lastIndexOf(','), lastDot = t.lastIndexOf('.');
+    if (lastComma > lastDot) t = t.replace(/\./g, '').replace(',', '.');           // 1.234,56
+    else if (lastDot > lastComma && t.length - lastDot === 4 && lastComma === -1) t = t.replace(/\./g, ''); // 1.234 (thousands)
+    else t = t.replace(/,/g, '');                                                      // 1,234.56 or 45.90
+    const v = Math.round(parseFloat(t) * 100);
+    return Number.isFinite(v) && v > 0 ? Math.min(v, 99999999) : 0;
+  }
+
   // Standard payment terms offered on the order (days after delivery/billing).
   const PAYMENT_TERMS = [
     'À vista',
@@ -182,7 +195,7 @@
   const PAYMENT_METHODS = ['Pix', 'Boleto', 'Cartão de crédito', 'A combinar'];
 
   return {
-    PAYMENT_TERMS, PAYMENT_METHODS,
+    PAYMENT_TERMS, PAYMENT_METHODS, parseBRL,
     toCents, formatBRL, buildIndex, lineKey, sanitizeQty,
     setQty, increment, decrement, removeLine, summarize, cleanCart, cleanPackaging, quantityText, nextOrderNumber,
   };

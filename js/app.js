@@ -73,6 +73,8 @@
     lastOrder: null,
   };
   state.pack = C.cleanPackaging(draft.pack, state.cart, INDEX);
+  state.freight = Number.isFinite(draft.freight) ? draft.freight : 0; // freight in cents; 0 = frete grátis
+  const grandCents = (s) => s.totalCents + (state.freight || 0);
 
   // ---------- Online storage ----------
   // Remote.kind: 'claude' (artifact database), 'github' (private repo) or null (this device only).
@@ -110,7 +112,7 @@
     if (!Remote.ready || Remote.kind !== 'claude') return; // drafts sync only in the claude.ai version
     clearTimeout(draftTimer);
     draftTimer = setTimeout(() => {
-      const body = JSON.parse(JSON.stringify({ cart: state.cart, pack: state.pack, customer: state.customer, editingNumber: state.editingNumber || null, savedAt: new Date().toISOString() }));
+      const body = JSON.parse(JSON.stringify({ cart: state.cart, pack: state.pack, freight: state.freight, customer: state.customer, editingNumber: state.editingNumber || null, savedAt: new Date().toISOString() }));
       remoteWrite('draft', () => userCol().doc('draft').set(body));
     }, 1200);
   }
@@ -158,9 +160,10 @@
       if (!Object.keys(state.cart).length && remoteDraft && remoteDraft.cart && Object.keys(remoteDraft.cart).length) {
         state.cart = C.cleanCart(remoteDraft.cart, INDEX);
         state.pack = C.cleanPackaging(remoteDraft.pack, state.cart, INDEX);
+        state.freight = remoteDraft.freight || 0;
         state.customer = Object.assign({}, remoteDraft.customer || {});
         state.editingNumber = remoteDraft.editingNumber || null;
-        save(DRAFT_KEY, { cart: state.cart, pack: state.pack, customer: state.customer, editingNumber: state.editingNumber });
+        save(DRAFT_KEY, { cart: state.cart, pack: state.pack, freight: state.freight, customer: state.customer, editingNumber: state.editingNumber });
         renderList(); updateTotals();
       }
       return true;
@@ -238,7 +241,7 @@
   }
 
   function persistDraft() {
-    save(DRAFT_KEY, { cart: state.cart, pack: state.pack, customer: state.customer, editingNumber: state.editingNumber });
+    save(DRAFT_KEY, { cart: state.cart, pack: state.pack, freight: state.freight, customer: state.customer, editingNumber: state.editingNumber });
     remoteSaveDraft();
   }
   // Save the order list locally and, when connected, the changed order online.
@@ -382,7 +385,8 @@
     const s = SUM();
     $('#bar-fardos').textContent = s.totalFardos;
     $('#bar-lines').textContent = s.lines.length;
-    $('#bar-total').textContent = C.formatBRL(s.totalCents);
+    $('#bar-total').textContent = C.formatBRL(grandCents(s));
+    $('#bar-freight').textContent = state.freight ? ' + frete' : '';
     $('#count-selected').textContent = s.lines.length;
     $('#btn-review').disabled = s.lines.length === 0;
     $('#history-count').textContent = state.orders.length;
@@ -457,7 +461,9 @@
       (s.totalFitinhas ? '<div><span>Total de fitinhas</span><span>' + s.totalFitinhas + '</span></div>' : '') +
       '<div><span>Total de pacotes (10 por fardo/fitinha)</span><span>' + s.totalUnits + '</span></div>' +
       (s.totalDisplays ? '<div><span>Expositores</span><span>' + s.totalDisplays + '</span></div>' : '') +
-      '<div class="grand"><span>TOTAL</span><span>' + C.formatBRL(s.totalCents) + '</span></div>';
+      '<div><span>Subtotal dos produtos</span><span>' + C.formatBRL(s.totalCents) + '</span></div>' +
+      '<div><span>Frete</span><span>' + (state.freight ? C.formatBRL(state.freight) : '<strong class="free">Grátis</strong>') + '</span></div>' +
+      '<div class="grand"><span>TOTAL</span><span>' + C.formatBRL(grandCents(s)) + '</span></div>';
     $('#btn-finish').disabled = s.lines.length === 0;
     $('#btn-finish').textContent = state.editingNumber ? 'Salvar alterações e gerar PDF' : 'Finalizar e gerar PDF';
   }
@@ -476,6 +482,12 @@
       if (el.type === 'checkbox') el.checked = !!state.customer[el.name];
       else el.value = state.customer[el.name] || '';
     });
+  }
+
+  function fillFreight() {
+    const el = $('#freight');
+    if (el) el.value = state.freight ? C.formatBRL(state.freight).replace('R$ ', '') : '';
+    if ($('#freight-clear')) $('#freight-clear').hidden = !state.freight;
   }
 
   function readCustomerForm() {
@@ -499,7 +511,8 @@
     if (!s.lines.length) { toast('O pedido está vazio.'); return; }
 
     const now = new Date().toISOString();
-    const base = { customer: state.customer, cart: Object.assign({}, state.cart), packaging: Object.assign({}, state.pack), totalCents: s.totalCents, totalFardos: s.totalFardos, totalFitinhas: s.totalFitinhas, totalDisplays: s.totalDisplays };
+    const base = { customer: state.customer, cart: Object.assign({}, state.cart), packaging: Object.assign({}, state.pack),
+      productsCents: s.totalCents, freightCents: state.freight || 0, totalCents: grandCents(s), totalFardos: s.totalFardos, totalFitinhas: s.totalFitinhas, totalDisplays: s.totalDisplays };
     let order;
     if (state.editingNumber) {
       const i = state.orders.findIndex((o) => o.number === state.editingNumber);
@@ -520,7 +533,7 @@
     $('#done-body').innerHTML =
       '<p><strong>' + esc(order.number) + '</strong>' + (order.customer.store ? ' · ' + esc(order.customer.store) : '') + '</p>' +
       '<p>' + s.lines.length + ' itens · ' + s.totalFardosOnly + ' fardos' + (s.totalFitinhas ? ' · ' + s.totalFitinhas + ' fitinhas' : '') + (s.totalDisplays ? ' · ' + s.totalDisplays + ' expositor(es)' : '') +
-        ' · <strong>' + C.formatBRL(s.totalCents) + '</strong></p>' +
+        ' · <strong>' + C.formatBRL(grandCents(s)) + '</strong>' + (state.freight ? ' (com frete de ' + C.formatBRL(state.freight) + ')' : ' (frete grátis)') + '</p>' +
       '<p class="hint">Pedido ' + where + ' (veja em “Pedidos salvos”). Baixe o PDF ou compartilhe direto pelo WhatsApp.</p>';
     open('done');
     updateTotals();
@@ -574,7 +587,7 @@
   }
 
   function newOrder() {
-    state.cart = {}; state.pack = {}; state.customer = {}; state.editingNumber = null;
+    state.cart = {}; state.pack = {}; state.freight = 0; state.customer = {}; state.editingNumber = null;
     persistDraft(); fillCustomerForm(); renderList(); updateTotals();
   }
 
@@ -586,7 +599,7 @@
       const s = C.summarize(o.cart, INDEX, o.packaging);
       const c = o.customer || {};
       return '<div class="hline" data-number="' + esc(o.number) + '">' +
-        '<div class="htop"><span>' + esc(o.number) + ' · ' + esc(c.store || 'Sem nome') + '</span><span>' + C.formatBRL(s.totalCents) + '</span></div>' +
+        '<div class="htop"><span>' + esc(o.number) + ' · ' + esc(c.store || 'Sem nome') + '</span><span>' + C.formatBRL(s.totalCents + (o.freightCents || 0)) + '</span></div>' +
         '<div class="hmeta">' + new Date(o.createdAt).toLocaleString('pt-BR') + (o.updatedAt ? ' · editado ' + new Date(o.updatedAt).toLocaleString('pt-BR') : '') +
           ' · ' + s.lines.length + ' itens · ' + s.totalFardos + ' fardos' + (s.totalDisplays ? ' · ' + s.totalDisplays + ' expositor(es)' : '') +
           (c.paymentMethod || c.paymentTerm ? ' · ' + esc([c.paymentMethod, c.paymentTerm].filter(Boolean).join(' ')) : '') + '</div>' +
@@ -613,6 +626,8 @@
       if (hasDraft() && state.editingNumber !== number && !(await confirmSafe('Substituir o pedido em andamento pelo pedido ' + number + '?', 'Substituir'))) return;
       state.cart = C.cleanCart(o.cart, INDEX);
       state.pack = C.cleanPackaging(o.packaging, state.cart, INDEX);
+      state.freight = o.freightCents || 0;
+      fillFreight();
       state.customer = Object.assign({}, o.customer);
       state.editingNumber = act === 'edit' ? o.number : null;
       persistDraft(); fillCustomerForm(); renderList(); updateTotals();
@@ -642,7 +657,7 @@
 
   function exportBackup() {
     const data = { app: 'CDT Atacado System', exportedAt: new Date().toISOString(), orders: state.orders,
-      draft: { cart: state.cart, pack: state.pack, customer: state.customer, editingNumber: state.editingNumber } };
+      draft: { cart: state.cart, pack: state.pack, freight: state.freight, customer: state.customer, editingNumber: state.editingNumber } };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     offerFile('cdt-atacado-backup-' + new Date().toISOString().slice(0, 10) + '.json', blob);
   }
@@ -711,13 +726,22 @@
     });
     document.addEventListener('focusin', (e) => { if (e.target.matches('.stepper input')) e.target.select(); });
 
-    $('#btn-review').addEventListener('click', () => { fillCustomerForm(); renderReview(); open('review'); });
+    $('#btn-review').addEventListener('click', () => { fillCustomerForm(); fillFreight(); renderReview(); open('review'); });
+    // Freight: typed in reais; empty = frete grátis. Totals update as you type, the field is tidied on blur.
+    $('#freight').addEventListener('input', (e) => {
+      state.freight = C.parseBRL(e.target.value); persistDraft(); renderReview(); updateTotals();
+    });
+    $('#freight').addEventListener('blur', fillFreight);
+    $('#freight').addEventListener('keydown', (e) => { if (e.key === 'Enter') e.target.blur(); });
+    $('#freight-clear').addEventListener('click', () => {
+      state.freight = 0; fillFreight(); persistDraft(); renderReview(); updateTotals();
+    });
     $('#customer-form').addEventListener('input', () => { state.customer = readCustomerForm(); persistDraft(); });
     $('#customer-form').addEventListener('change', () => { state.customer = readCustomerForm(); persistDraft(); });
     $('#customer-form').addEventListener('submit', (e) => e.preventDefault());
     $('#btn-clear').addEventListener('click', async () => {
       if (!(await confirmSafe('Limpar todos os itens do pedido atual?', 'Limpar'))) return;
-      state.cart = {}; state.pack = {}; state.editingNumber = null; persistDraft(); renderReview(); renderList(); updateTotals();
+      state.cart = {}; state.pack = {}; state.freight = 0; state.editingNumber = null; fillFreight(); persistDraft(); renderReview(); renderList(); updateTotals();
     });
     $('#btn-finish').addEventListener('click', finishOrder);
     $('#btn-done-download').addEventListener('click', () => state.lastOrder && downloadPdf(state.lastOrder));

@@ -255,3 +255,14 @@ table.orders td:nth-child(3) { white-space: normal; min-width: 120px; }
 .pack-toggle .seg + .seg { border-left: 1px solid var(--line); }
 .pack-toggle .seg.on { background: var(--green); color: #fff; }
 .card img.img-fallback { object-fit: contain; padding: 18px 6px; opacity: .55; }
+
+/* Freight */
+.freight-box { margin-top: 14px; background: #fff; border-radius: var(--radius); padding: 12px 14px; box-shadow: var(--shadow); }
+.freight-box label { display: block; font-size: .9rem; margin-bottom: 8px; color: var(--ink); }
+.freight-box label .muted { font-size: .8rem; }
+.freight-row { display: flex; align-items: center; gap: 8px; }
+.freight-row .prefix { font-weight: 700; color: var(--muted); }
+#freight { flex: 1; min-width: 0; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: #fff; font-size: 1.1rem; font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; }
+#freight:focus { outline: 2px solid var(--terracota); border-color: transparent; }
+.totals .free { color: var(--green); }
+#bar-freight { font-size: .7rem; color: var(--muted); font-weight: 600; margin-left: 4px; }

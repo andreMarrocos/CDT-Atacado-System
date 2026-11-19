@@ -6,7 +6,7 @@
   <title>CDT Atacado System · Pedido de Atacado</title>
   <meta name="theme-color" content="#a64e34">
   <link rel="icon" href="img/logo.png">
-  <link rel="stylesheet" href="css/style.css?v=202611181600">
+  <link rel="stylesheet" href="css/style.css?v=202611191107">
 </head>
 <body>
   <header class="topbar">
@@ -42,7 +42,7 @@
   <footer class="cartbar" id="cartbar">
     <div class="cartbar-info">
       <span><strong id="bar-fardos">0</strong> fardos · <span id="bar-lines">0</span> itens</span>
-      <strong class="total" id="bar-total">R$ 0,00</strong>
+      <strong class="total"><span id="bar-total">R$ 0,00</span><small id="bar-freight"></small></strong>
     </div>
     <button class="btn primary" id="btn-review" type="button">Revisar e finalizar</button>
   </footer>
@@ -75,6 +75,15 @@
             <button type="button" class="btn small" data-pack-all="fitinha">Fitinha</button></div></div>
         <p class="hint">Fardo e fitinha têm 10 pacotes cada e o mesmo preço. Escolha a embalagem em cada item.</p>
         <div id="review-lines" class="review-lines"></div>
+
+        <section class="freight-box">
+          <label for="freight"><strong>Frete</strong> <span class="muted">(cote no site da transportadora e digite o valor; vazio = frete grátis)</span></label>
+          <div class="freight-row">
+            <span class="prefix">R$</span>
+            <input id="freight" inputmode="decimal" autocomplete="off" placeholder="0,00 = frete grátis">
+            <button type="button" class="btn small ghost" id="freight-clear" hidden>Frete grátis</button>
+          </div>
+        </section>
 
         <div class="totals" id="review-totals"></div>
       </div>
@@ -177,18 +186,18 @@
   <div class="toast" id="toast" role="status" hidden></div>
 
   <!-- PDF libraries: local copy first, CDN fallback (same versions) -->
-  <script src="vendor/jspdf.umd.min.js?v=202611181600"></script>
+  <script src="vendor/jspdf.umd.min.js?v=202611191107"></script>
   <script>window.jspdf || document.write('<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js"><\/script>');</script>
-  <script src="vendor/jspdf.plugin.autotable.min.js?v=202611181600"></script>
+  <script src="vendor/jspdf.plugin.autotable.min.js?v=202611191107"></script>
   <script>(window.jspdf && window.jspdf.jsPDF && window.jspdf.jsPDF.API.autoTable) || document.write('<script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.4/dist/jspdf.plugin.autotable.min.js"><\/script>');</script>
-  <script src="js/catalog.js?v=202611181600"></script>
-  <script src="js/chas.js?v=202611181600"></script>
-  <script src="js/expositores.js?v=202611181600"></script>
-  <script src="js/github-sync.js?v=202611181600"></script>
-  <script src="js/logo-data.js?v=202611181600"></script>
-  <script src="js/order-core.js?v=202611181600"></script>
-  <script src="js/pdf.js?v=202611181600"></script>
-  <script src="js/analise.js?v=202611181600"></script>
-  <script src="js/app.js?v=202611181600"></script>
+  <script src="js/catalog.js?v=202611191107"></script>
+  <script src="js/chas.js?v=202611191107"></script>
+  <script src="js/expositores.js?v=202611191107"></script>
+  <script src="js/github-sync.js?v=202611191107"></script>
+  <script src="js/logo-data.js?v=202611191107"></script>
+  <script src="js/order-core.js?v=202611191107"></script>
+  <script src="js/pdf.js?v=202611191107"></script>
+  <script src="js/analise.js?v=202611191107"></script>
+  <script src="js/app.js?v=202611191107"></script>
 </body>
 </html>
